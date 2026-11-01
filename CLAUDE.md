@@ -23,5 +23,14 @@ Garder quand même les données perso hors du dépôt (`core.paths`) pour que ce
   aperçu, confirmation, possibilité d'annuler, et journal.
 - Les apps exposent leurs fonctions comme des outils simples pour que Sakura AI puisse les appeler.
 
+## Répartition Claude / Codex (économiser les crédits Claude)
+- **Claude** : comprendre la demande, découper le travail, écrire des consignes précises, relire et tester.
+- **Codex** (compte ChatGPT de Gurvan) : écrire le code. Depuis Bash :
+  `codex exec -C <dossier> -s workspace-write -o <résumé.txt> "<consignes>" </dev/null`
+  (le `</dev/null` est obligatoire, sinon Codex attend une saisie). Donner à Codex : les fichiers concernés,
+  ce qu'il faut faire, les conventions ci-dessus, et ce qu'il ne doit pas toucher.
+- Après chaque passage de Codex : relire le diff (`git diff`), tester, corriger si besoin, puis committer.
+- Petites retouches (quelques lignes) : Claude les fait directement, ce n'est pas la peine de déléguer.
+
 ## Feuilles de route
 - `docs/roadmaps/launcher.md`, `lights.md`, `optimizer.md`, `ai.md`.
