@@ -1,14 +1,14 @@
-<p align="center"><img src="design/logo/sakura-pc.svg" width="140" alt="Sakura PC"></p>
+<p align="center"><img src="design/logo/sakura-pc.png" width="140" alt="Sakura PC"></p>
 
 <h1 align="center">Sakura PC</h1>
 <p align="center">Un écosystème d'applis Windows aux couleurs du sakura 🌸</p>
 
 | | Appli | Ce qu'elle fait | État |
 |---|---|---|---|
-| <img src="design/logo/launcher.svg" width="40"> | **Sakura Launcher** | Remplace le bureau au démarrage : choisis ton jeu et tes applis, tout se lance dans l'ordre | ✅ utilisé tous les jours |
-| <img src="design/logo/light.svg" width="40"> | **Sakura Light** | Éclairage RGB synchronisé : tempête de sakura au démarrage, ambiances jour / nuit | ✅ utilisé tous les jours |
-| <img src="design/logo/optimizer.svg" width="40"> | **Sakura Optimizer** | Surveille le PC et explique pourquoi ça rame | 🚧 en préparation |
-| <img src="design/logo/ai.svg" width="40"> | **Sakura AI** | Assistante locale (Ollama) qui pilote le PC, à la voix | 🚧 en préparation |
+| <img src="design/logo/launcher.png" width="40"> | **Sakura Launcher** | Remplace le bureau au démarrage : choisis ton jeu et tes applis, tout se lance dans l'ordre | ✅ utilisé tous les jours |
+| <img src="design/logo/light.png" width="40"> | **Sakura Light** | Éclairage RGB synchronisé : tempête de sakura au démarrage, ambiances jour / nuit | ✅ utilisé tous les jours |
+| <img src="design/logo/optimizer.png" width="40"> | **Sakura Optimizer** | Surveille le PC et explique pourquoi ça rame | 🚧 en préparation |
+| <img src="design/logo/ai.png" width="40"> | **Sakura AI** | Assistante locale (Ollama) qui pilote le PC, à la voix | 🚧 en préparation |
 
 ## Organisation du dépôt
 
