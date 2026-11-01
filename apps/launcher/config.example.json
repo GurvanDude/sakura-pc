@@ -1,0 +1,275 @@
+{
+  "settings": {
+    "day_start": 8,
+    "day_end": 18,
+    "guard_seconds": 90,
+    "game_timeout": 180,
+    "app_timeout": 30,
+    "ready_delay": 4,
+    "backgrounds": {
+      "day": {
+        "main": "day-main",
+        "side": "day-side"
+      },
+      "night": {
+        "main": "night-main",
+        "side": "night-side"
+      }
+    },
+    "boot_block": [
+      "ms-teams.exe",
+      "Discord.exe",
+      "OneDrive.exe",
+      "browser_assistant.exe",
+      "GalaxyClient.exe"
+    ],
+    "pause_if_playing": [
+      "Spotify.exe"
+    ],
+    "welcome_name": "Toi",
+    "browser": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+    "ram_driver": "openrgb"
+  },
+  "games": [
+    {
+      "id": "413150",
+      "name": "Stardew Valley",
+      "cover": "assets/covers/413150.jpg",
+      "launch": {
+        "uri": "steam://rungameid/413150"
+      },
+      "auto": "steam"
+    },
+    {
+      "id": "chess",
+      "name": "Chess.com",
+      "cover": "assets/covers/chess.jpg",
+      "launch": {
+        "url": "https://www.chess.com/home"
+      },
+      "title": "Chess.com"
+    }
+  ],
+  "apps": [
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "sub": "dans le navigateur",
+      "icon": "assets/icons/youtube.svg",
+      "launch": {
+        "url": "https://www.youtube.com"
+      },
+      "title": "YouTube"
+    },
+    {
+      "id": "spotify",
+      "name": "Spotify",
+      "icon": "assets/icons/spotify.png",
+      "launch": {
+        "uri": "shell:AppsFolder\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify"
+      },
+      "process": "Spotify.exe"
+    }
+  ],
+  "music": {
+    "id": "flstudio",
+    "name": "FL Studio",
+    "launch": {
+      "exe": "C:\\Program Files\\Image-Line\\FL Studio 2024\\FL64.exe"
+    },
+    "process": "FL64.exe"
+  },
+  "classic": [
+    {
+      "id": "steam",
+      "name": "Steam",
+      "launch": {
+        "uri": "steam://open/main"
+      }
+    }
+  ],
+  "recent": [],
+  "lights": {
+    "zones": {
+      "mb:D_LED1": {
+        "u": 0.7,
+        "span": 0.25,
+        "leds": 40,
+        "name": "Ventilateur du haut et du bas",
+        "enabled": true,
+        "order": "BRG"
+      },
+      "mb:D_LED2": {
+        "u": 0.74,
+        "span": 0.25,
+        "leds": 40,
+        "name": "Ventirad",
+        "enabled": true,
+        "order": "RGB"
+      },
+      "mb:I/O Cover": {
+        "u": 0.78,
+        "span": 0.02,
+        "enabled": false,
+        "order": "RGB"
+      },
+      "mb:LED_C1": {
+        "u": 0.82,
+        "span": 0.02,
+        "enabled": false,
+        "order": "RGB"
+      },
+      "mb:LED_CPU": {
+        "u": 0.86,
+        "span": 0.02,
+        "enabled": false,
+        "order": "RGB"
+      },
+      "mb:PCI-E Accent": {
+        "u": 0.9,
+        "span": 0.02,
+        "name": "Led carte mere",
+        "enabled": false,
+        "order": "RGB"
+      },
+      "mb:LED_C2": {
+        "u": 0.94,
+        "span": 0.02,
+        "enabled": false,
+        "order": "RGB"
+      },
+      "ram1": {
+        "u": 0.55,
+        "span": 0.1,
+        "name": "Barette de Ram 1",
+        "enabled": true,
+        "order": "RGB"
+      },
+      "ram2": {
+        "u": 0.55,
+        "span": 0.1,
+        "name": "Barette de Ram 2",
+        "enabled": true,
+        "order": "RGB"
+      }
+    },
+    "programs": {
+      "day": {
+        "mb:PCI-E Accent": {
+          "effect": "static",
+          "a": "#ffffff",
+          "b": "#ffffff",
+          "speed": 1,
+          "phase": 0
+        },
+        "mb:D_LED1": {
+          "effect": "static",
+          "a": "#ffffff",
+          "b": "#ffffff",
+          "speed": 1,
+          "bright": 1,
+          "phase": 0
+        },
+        "ram1": {
+          "effect": "wave",
+          "a": "#ff5fa8",
+          "b": "#ffffff",
+          "speed": 1,
+          "bright": 1,
+          "phase": 0
+        },
+        "ram2": {
+          "effect": "wave",
+          "a": "#ffffff",
+          "b": "#ff5fa8",
+          "speed": 0.8,
+          "bright": 1,
+          "phase": 0.37
+        },
+        "mb:D_LED2": {
+          "effect": "comet",
+          "a": "#ff5fa8",
+          "b": "#ffffff",
+          "speed": 1,
+          "bright": 1,
+          "phase": 0
+        }
+      },
+      "night": {
+        "mb:PCI-E Accent": {
+          "effect": "static",
+          "a": "#0a3cff",
+          "b": "#ffffff",
+          "speed": 1,
+          "phase": 0
+        },
+        "mb:D_LED1": {
+          "effect": "rain",
+          "a": "#0a3cff",
+          "b": "#4aa3ff",
+          "speed": 1,
+          "bright": 0.85,
+          "phase": 0
+        },
+        "ram1": {
+          "effect": "neon",
+          "a": "#0a3cff",
+          "b": "#ffffff",
+          "speed": 1,
+          "bright": 1,
+          "phase": 0,
+          "gap_min": 3,
+          "gap_max": 10
+        },
+        "ram2": {
+          "effect": "neon",
+          "a": "#0a3cff",
+          "b": "#ffffff",
+          "speed": 1,
+          "bright": 1,
+          "phase": 0.55,
+          "gap_min": 3,
+          "gap_max": 10
+        },
+        "mb:D_LED2": {
+          "effect": "static",
+          "a": "#ff0f9b",
+          "b": "#ffffff",
+          "speed": 1,
+          "bright": 1,
+          "phase": 0
+        }
+      }
+    },
+    "scenes": {
+      "storm": {
+        "color": "#ff1493",
+        "first": [
+          "ram1",
+          "ram2"
+        ],
+        "fill": [
+          "mb:D_LED1",
+          "mb:D_LED2"
+        ],
+        "fill_delay": 2,
+        "fill_time": 2.5,
+        "hold": 5.5,
+        "fade_out": 1.3,
+        "fade_in": 1.3
+      },
+      "flash": {
+        "color": "#ff3caf",
+        "fade": 2.7
+      },
+      "go_day": {
+        "pink": "#ff4fa3",
+        "white": "#ffffff"
+      },
+      "go_night": {
+        "pink": "#ff0f9b",
+        "cyan": "#0a3cff"
+      }
+    }
+  }
+}

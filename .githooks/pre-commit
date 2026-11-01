@@ -1,0 +1,4 @@
+#!/bin/sh
+# Empêche de committer, sur une branche de projet, des fichiers d'un autre projet.
+export PYTHONUTF8=1
+exec python .github/scripts/branch_guard.py --staged

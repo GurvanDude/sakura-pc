@@ -1,0 +1,18 @@
+name: Garde des branches
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Chaque branche ne touche que son projet
+        run: python .github/scripts/branch_guard.py origin/main

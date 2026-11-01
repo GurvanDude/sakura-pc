@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Sakura Lumières</title>
+<style>
+  :root { --bg: #0d0a16; --card: #1a1428; --card2: #231a36; --ink: #fbeaf3; --soft: #b9a3c9; --pink: #ff4fa3; --cyan: #4ff0ff; --line: #3a2c52; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(ellipse at top, #2a1238, var(--bg) 60%); color: var(--ink); font: 15px 'Segoe UI', sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; padding: 14px 24px; background: rgba(13,10,22,.92); border-bottom: 1px solid var(--line); backdrop-filter: blur(8px); }
+  header h1 { margin: 0; font: 700 22px 'Yu Mincho', serif; color: var(--pink); letter-spacing: .03em; }
+  header .jp { color: var(--soft); font-size: 13px; letter-spacing: .3em; }
+  .status { margin-left: auto; display: flex; gap: 10px; font-size: 13px; color: var(--soft); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #c33; margin-right: 5px; }
+  .dot.on { background: #3c8; }
+  main { max-width: 1180px; margin: 0 auto; padding: 18px 24px 80px; }
+  h2 { font: 700 19px 'Yu Mincho', serif; margin: 30px 0 4px; }
+  h2 small { font: 400 13px 'Segoe UI'; color: var(--soft); margin-left: 8px; }
+  p.lead { color: var(--soft); margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 4px; font-size: 16px; }
+  .card .desc { color: var(--soft); font-size: 13px; line-height: 1.45; margin: 0 0 10px; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 7px 0; font-size: 13px; }
+  .row label { min-width: 120px; color: var(--soft); }
+  .prog { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 6px; }
+  .row input[type=range] { flex: 1; accent-color: var(--pink); }
+  .row output { width: 42px; text-align: right; color: var(--soft); }
+  input[type=color] { width: 38px; height: 26px; border: 1px solid var(--line); border-radius: 6px; background: none; padding: 0; cursor: pointer; }
+  input[type=text], input[type=number] { background: var(--card2); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: inherit; }
+  input[type=text] { flex: 1; }
+  input[type=number] { width: 70px; }
+  select { background: var(--card2); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: inherit; }
+  button { font: 600 13px 'Segoe UI'; color: #fff; background: var(--card2); border: 1px solid var(--line); border-radius: 99px; padding: 7px 14px; cursor: pointer; }
+  button:hover { border-color: var(--pink); }
+  button.play { background: linear-gradient(120deg, #ff4fa3, #9b4dff); border: 0; }
+  button.big { padding: 10px 20px; font-size: 14px; }
+  button.stop { background: #3a1626; border-color: #ff4f6e; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .who { display: inline-block; font-size: 12px; color: var(--cyan); background: rgba(79,240,255,.08); border: 1px solid rgba(79,240,255,.25); padding: 2px 8px; border-radius: 99px; margin: 2px 4px 2px 0; }
+  .toggle { display: flex; align-items: center; gap: 6px; color: var(--soft); font-size: 13px; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; padding: 12px; background: rgba(13,10,22,.95); border-top: 1px solid var(--line); }
+  .toast { position: fixed; bottom: 70px; left: 50%; translate: -50% 0; background: var(--card2); border: 1px solid var(--pink); padding: 9px 18px; border-radius: 99px; opacity: 0; transition: opacity .3s; }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sakura Lumières</h1><span class="jp">桜の光</span>
+  <div class="status" id="status"></div>
+</header>
+<main>
+  <h2>Composants <small>ce qui s'allume dans ta tour</small></h2>
+  <p class="lead">Clique sur <b>« Identifier »</b> : seule cette zone clignote en blanc pendant 6 secondes. Donne-lui le nom de ce que tu vois s'allumer (ex. « Ventirad MSI »), règle son nombre de LED pour les prises ARGB, et sa place dans la tempête (0 = elle s'allume en premier, 100 = en dernier). Une zone décochée reste éteinte.</p>
+  <div class="grid" id="zones"></div>
+
+  <h2>Scènes du launcher <small>ce que tes lumières font au démarrage et pendant le launcher</small></h2>
+  <div class="grid" id="scenes"></div>
+
+  <h2>Galerie d'effets <small>tout ce que tes composants peuvent faire, à essayer</small></h2>
+  <p class="lead">Comme les LED sont pilotées une par une par le logiciel, n'importe quel effet est possible : ceux-là sont des exemples. Si tu imagines autre chose, décris-le moi.</p>
+  <div class="grid" id="effects"></div>
+
+  <h2>Démarrage dans le noir <small>pour que la tour reste éteinte jusqu'à la tempête</small></h2>
+  <div class="grid"><div class="card">
+    <h3>Carte mère, ventilateurs et ventirad</h3>
+    <p class="desc">Avant que le programme lumières prenne la main, la puce de la carte mère joue l'effet enregistré en elle.
+      Pour qu'elle reste noire : clique ci-dessous, ouvre <b>GIGABYTE Control Center</b> → <b>RGB Fusion</b>, mets toutes les zones sur <b>Éteint / Off</b> et applique.
+      Le réglage est enregistré dans la puce. Ensuite, ferme GIGABYTE Control Center.</p>
+    <div class="actions"><button class="play" onclick="api('/api/pause_conflicts?minutes=10'); toast('GIGABYTE Control Center autorisé pendant 10 minutes')">Laisser GIGABYTE ouvert 10 min</button></div>
+  </div><div class="card">
+    <h3>Barrettes de RAM</h3>
+    <p class="desc">Avant qu'iCUE démarre, la RAM joue son « éclairage matériel ». Dans <b>iCUE</b> : clique sur ta RAM → onglet
+      <b>Éclairage matériel</b> → effet <b>Statique</b> en <b>noir</b> (ou éteint). C'est enregistré dans les barrettes.</p>
+  </div></div>
+
+  <h2>Effets intégrés à la carte mère <small>calculés par la puce GIGABYTE elle-même</small></h2>
+  <p class="lead">Effets « matériels » que la carte mère sait faire seule, sans logiciel. Ils s'appliquent à toute la carte (et à ce qui est branché sur ses prises), pendant 8 secondes.</p>
+  <div class="grid" id="hw"></div>
+</main>
+<footer>
+  <button class="big stop" onclick="api('/api/stoptest'); toast('Test arrêté')">■ Arrêter le test</button>
+  <button class="big" onclick="api('/api/stop'); toast('Retour à l\'ambiance du moment')">Revenir à l'ambiance</button>
+  <button class="big play" onclick="save()">Enregistrer les réglages</button>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+let state;
+const $ = s => document.querySelector(s);
+const api = (path) => fetch(path);
+function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), 2200); }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const zname = z => z.name || z.label;
+
+const EFFECT_NAMES = { static: 'Couleur fixe', wave: 'Vague 2 couleurs', comet: 'Comète', rain: 'Pluie', neon: 'Néon qui grésille',
+  breathing: 'Respiration', rainbow: 'Arc-en-ciel', sparkle: 'Pluie de pétales', fire: 'Feu', police: 'Gyrophare' };
+const TWO_COLORS = ['wave', 'rain', 'police'];
+
+const SCENES = {
+  off: { title: 'Avant la tempête (tout éteint)', desc: "Au démarrage du PC, toutes les lumières pilotées restent éteintes jusqu'à la tempête de pétales." },
+  storm: { title: "Tempête d'ouverture", desc: "Les composants « en premier » s'allument tout de suite et restent allumés. Après le délai, ceux « en remplissage » s'allument LED par LED. Puis tout s'éteint petit à petit et chaque composant passe à son style du moment." },
+  day: { title: 'Ambiance jour (8 h – 18 h)', desc: 'Le style de chaque composant le jour.' },
+  night: { title: 'Ambiance nuit (18 h – 8 h)', desc: 'Le style de chaque composant la nuit.' },
+  flash_day: { title: "« C'est parti » de jour : Hanami", desc: "Flash blanc sur les barrettes, puis une onde rose sakura remplit les ventilateurs et le ventirad LED par LED (front blanc). Des pétales blancs tombent pendant que tout s'éteint doucement, puis le style du jour revient." },
+  flash_night: { title: "« C'est parti » de nuit : Néon overload", desc: "Tout s'allume en rose néon en grésillant comme un tube qui démarre. Deux comètes rose et cyan font la course autour des ventilateurs, les barrettes clignotent rose/cyan en alternance. Surtension, puis coupure sèche avec un dernier éclat cyan, et le style de nuit revient." },
+};
+
+function zoneCard(z) {
+  const argb = z.key.startsWith('mb:D_LED');
+  return `<div class="card" data-zone="${z.key}">
+    <h3>${esc(zname(z))}</h3><p class="desc">${esc(z.label)} · ${z.count} LED</p>
+    <div class="row"><label>Nom</label><input type="text" data-k="name" value="${esc(z.name || '')}" placeholder="ex. Ventirad MSI"></div>
+    ${argb ? `<div class="row"><label>Nombre de LED</label><input type="number" data-k="leds" min="1" max="300" value="${z.leds || z.count}"></div>` : ''}
+    <div class="row"><label>Ordre des couleurs</label><select data-k="order">${['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR'].map(o => `<option ${o === (z.order || 'RGB') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+      <button onclick="colorTest('${z.key}')">Tester les couleurs</button></div>
+    <div class="actions">
+      <label class="toggle"><input type="checkbox" data-k="enabled" ${z.enabled === false ? '' : 'checked'}> Utilisée</label>
+      <button onclick="api('/api/identify?zone=${encodeURIComponent(z.key)}'); toast('Regarde ta tour : cette zone clignote')">Identifier</button>
+    </div></div>`;
+}
+
+function paramRow(key, type, label, min, max, step, val) {
+  if (type === 'color') return `<div class="row"><label>${label}</label><input type="color" data-k="${key}" value="${val}"></div>`;
+  return `<div class="row"><label>${label}</label><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${val}"><output>${val}</output></div>`;
+}
+
+const usedZones = () => state.zones.filter(z => z.enabled !== false);
+
+// réglage d'un composant dans une ambiance : effet, couleurs, vitesse, décalage
+function progRow(theme, z) {
+  const p = state.programs[theme][z.key] || { effect: 'static', a: '#ffffff' };
+  const two = TWO_COLORS.includes(p.effect);
+  return `<div class="prog" data-prog="${theme}|${z.key}">
+    <div class="row"><label><b>${esc(zname(z))}</b></label>
+      <select data-k="effect" onchange="this.closest('.prog').querySelector('[data-k=b]').hidden = !${JSON.stringify(TWO_COLORS)}.includes(this.value)">
+        ${Object.entries(EFFECT_NAMES).map(([id, n]) => `<option value="${id}" ${id === p.effect ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <input type="color" data-k="a" value="${p.a || '#ffffff'}"><input type="color" data-k="b" value="${p.b || '#ffffff'}" ${two ? '' : 'hidden'}></div>
+    <div class="row"><label>Vitesse</label><input type="range" data-k="speed" min=".2" max="3" step=".1" value="${p.speed ?? 1}"><output>${p.speed ?? 1}</output></div>
+    <div class="row"><label>Luminosité</label><input type="range" data-k="bright" min=".1" max="1" step=".05" value="${p.bright ?? 1}"><output>${p.bright ?? 1}</output></div>
+    <div class="row"><label>Décalage</label><input type="range" data-k="phase" min="0" max="1" step=".01" value="${p.phase ?? 0}"><output>${p.phase ?? 0}</output></div>
+    ${p.effect === 'neon' ? `
+    <div class="row"><label>Grésille entre (s)</label><input type="range" data-k="gap_min" min="1" max="20" step=".5" value="${p.gap_min ?? 3}"><output>${p.gap_min ?? 3}</output></div>
+    <div class="row"><label>et (s)</label><input type="range" data-k="gap_max" min="1" max="30" step=".5" value="${p.gap_max ?? 10}"><output>${p.gap_max ?? 10}</output></div>` : ''}
+  </div>`;
+}
+
+function stormBody() {
+  const sc = state.scenes.storm;
+  const role = k => sc.first.includes(k) ? 'first' : sc.fill.includes(k) ? 'fill' : 'none';
+  return paramRow('color', 'color', 'Couleur', 0, 0, 0, sc.color)
+    + usedZones().map(z => `<div class="row"><label>${esc(zname(z))}</label><select data-role="${z.key}">
+        ${[['first', 'En premier'], ['fill', 'En remplissage'], ['none', 'Éteint']].map(([v, n]) => `<option value="${v}" ${role(z.key) === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>`).join('')
+    + paramRow('fill_delay', 'range', 'Délai du remplissage (s)', 0, 5, .1, sc.fill_delay)
+    + paramRow('fill_time', 'range', 'Durée du remplissage (s)', .5, 6, .1, sc.fill_time)
+    + paramRow('hold', 'range', 'Extinction à (s)', 2, 12, .1, sc.hold)
+    + paramRow('fade_out', 'range', 'Durée de l\'extinction (s)', .3, 4, .1, sc.fade_out)
+    + paramRow('fade_in', 'range', "Apparition du style (s)", .3, 4, .1, sc.fade_in);
+}
+
+function sceneBody(id) {
+  if (id === 'storm') return stormBody();
+  if (id === 'day' || id === 'night') return usedZones().map(z => progRow(id, z)).join('');
+  if (id === 'flash_day') return paramRow('pink', 'color', 'Rose', 0, 0, 0, state.scenes.go_day.pink)
+    + paramRow('white', 'color', 'Blanc', 0, 0, 0, state.scenes.go_day.white);
+  if (id === 'flash_night') return paramRow('pink', 'color', 'Rose néon', 0, 0, 0, state.scenes.go_night.pink)
+    + paramRow('cyan', 'color', 'Cyan', 0, 0, 0, state.scenes.go_night.cyan);
+  return '';
+}
+
+function render() {
+  $('#status').innerHTML = `<span><span class="dot ${state.connected.corsair ? 'on' : ''}"></span>RAM (iCUE)</span><span><span class="dot ${state.connected.openrgb ? 'on' : ''}"></span>Carte mère (OpenRGB)</span>`;
+  $('#zones').innerHTML = state.zones.map(zoneCard).join('') || '<p class="lead">Connexion aux composants en cours…</p>';
+  $('#scenes').innerHTML = Object.entries(SCENES).map(([id, s]) => `<div class="card" data-scene="${id}">
+    <h3>${s.title}</h3><p class="desc">${s.desc}</p>${sceneBody(id)}
+    <div class="actions"><button class="play" onclick="playScene('${id}')">▶ Voir</button></div></div>`).join('');
+  $('#effects').innerHTML = state.effects.map(e => `<div class="card" data-effect="${e.id}">
+    <h3>${e.name}</h3><p class="desc">${e.desc}</p>
+    ${paramRow('a', 'color', 'Couleur 1', 0, 0, 0, '#ff46a5')}${paramRow('b', 'color', 'Couleur 2', 0, 0, 0, '#195aff')}
+    ${paramRow('speed', 'range', 'Vitesse', .2, 3, .1, 1)}
+    <div class="actions"><button class="play" onclick="playEffect('${e.id}')">▶ Voir 12 s</button></div></div>`).join('');
+  $('#hw').innerHTML = state.hw.flatMap(d => d.modes.map(m => `<div class="card" data-hw="${esc(m)}">
+    <h3>${esc(m)}</h3><p class="desc">${esc(d.device)}</p>${paramRow('color', 'color', 'Couleur', 0, 0, 0, '#ff46a5')}
+    <div class="actions"><button class="play" onclick="playHw('${esc(m)}', this)">▶ Voir 8 s</button></div></div>`)).join('') || '<p class="lead">Carte mère non connectée.</p>';
+  document.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => { r.nextElementSibling.textContent = r.value; }));
+}
+
+const fields = el => Object.fromEntries([...el.querySelectorAll('[data-k]')].map(i => [i.dataset.k,
+  i.type === 'checkbox' ? i.checked : i.type === 'range' || i.type === 'number' ? +i.value : i.value]));
+
+function collect() {
+  const zones = {}, programs = { day: { ...state.programs.day }, night: { ...state.programs.night } };
+  document.querySelectorAll('[data-zone]').forEach(c => {
+    const f = fields(c), old = state.zones.find(z => z.key === c.dataset.zone);
+    zones[c.dataset.zone] = { ...old, ...f };
+    for (const k of ['key', 'label', 'count']) delete zones[c.dataset.zone][k];
+    if (!f.name) delete zones[c.dataset.zone].name;
+  });
+  document.querySelectorAll('[data-prog]').forEach(el => {
+    const [theme, key] = el.dataset.prog.split('|');
+    programs[theme][key] = fields(el);
+  });
+  const storm = { ...state.scenes.storm, ...fields(document.querySelector('[data-scene=storm]')), first: [], fill: [] };
+  document.querySelectorAll('[data-role]').forEach(s => { if (s.value !== 'none') storm[s.value].push(s.dataset.role); });
+  const go_day = { ...state.scenes.go_day, ...fields(document.querySelector('[data-scene=flash_day]')) };
+  const go_night = { ...state.scenes.go_night, ...fields(document.querySelector('[data-scene=flash_night]')) };
+  return { zones, programs, scenes: { storm, flash: state.scenes.flash, go_day, go_night } };
+}
+async function save(quiet) {
+  await fetch('/api/save', { method: 'POST', body: JSON.stringify(collect()) });
+  if (!quiet) { toast('Réglages enregistrés'); load(); }
+}
+// rouge, vert puis bleu (2 s chacun) : si ce qui s'allume ne correspond pas, change « Ordre des couleurs »
+async function colorTest(key) {
+  await save(true);
+  api('/api/colortest?zone=' + encodeURIComponent(key));
+  ['ROUGE', 'VERT', 'BLEU'].forEach((c, i) => setTimeout(() => toast(`Tu devrais voir du ${c}`), i * 2000));
+}
+async function playScene(id) { await save(true); api('/api/scene?scene=' + id); toast(SCENES[id].title + ' : regarde ta tour'); }
+function playEffect(id) {
+  const p = fields(document.querySelector(`[data-effect="${id}"]`));
+  api(`/api/effect?id=${id}&params=${encodeURIComponent(JSON.stringify(p))}`); toast('Aperçu pendant 12 secondes');
+}
+function playHw(mode, btn) {
+  const c = fields(btn.closest('[data-hw]')).color;
+  api(`/api/hw?mode=${encodeURIComponent(mode)}&color=${encodeURIComponent(c)}`); toast('Effet de la carte mère pendant 8 secondes');
+}
+async function load() { state = await (await fetch('/api/state')).json(); render(); }
+load();
+setInterval(async () => {   // les composants peuvent se connecter après l'ouverture de l'appli
+  const s = await (await fetch('/api/state')).json();
+  if (s.zones.length !== state.zones.length || s.hw.length !== state.hw.length) { state = s; render(); }
+}, 3000);
+</script>
+</body>
+</html>

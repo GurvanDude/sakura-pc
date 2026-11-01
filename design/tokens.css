@@ -1,0 +1,24 @@
+/* Sakura PC : couleurs et typographie communes à toutes les applis.
+   Les applis importent ce fichier ; on ne recopie jamais une couleur en dur ailleurs. */
+:root {
+  /* jour : sakura en fleur */
+  --sakura: #ff5fa8;
+  --sakura-deep: #e0236f;
+  --sakura-pale: #ffd3e6;
+  --cream: #fff4f8;
+  --ink: #3a1028;
+
+  /* nuit : néon */
+  --neon-pink: #ff0f9b;
+  --neon-blue: #0a3cff;
+  --neon-cyan: #7fd8ff;
+  --night: #140818;
+  --night-2: #1a0b1f;
+
+  /* typo */
+  --font-title: "Zen Maru Gothic", "Yu Gothic UI", sans-serif;
+  --font-body: "Nunito", "Segoe UI", sans-serif;
+  --font-jp: "Zen Maru Gothic", "Yu Gothic UI", sans-serif;
+
+  --radius: 18px;
+}
