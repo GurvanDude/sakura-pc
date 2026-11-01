@@ -1,6 +1,8 @@
 # Logos Sakura PC : prompts ChatGPT
 
-Les logos actuels (`logo/*.svg`) sont des brouillons. Les vrais se font dans ChatGPT, **dans une seule
+**Logos actuels : direction A**, générés le 1er novembre 2026. Pour en refaire un, rester dans le même style.
+
+Les logos se font dans ChatGPT, **dans une seule
 conversation**, dans l'ordre : d'abord la fleur de base, puis chaque variante « à partir de l'image
 précédente », pour que toute la série garde la même fleur.
 

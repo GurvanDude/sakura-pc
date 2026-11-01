@@ -1,17 +1,18 @@
 # Direction artistique Sakura PC
 
-**Une fleur, plusieurs habits.** Chaque appli garde la même fleur de sakura à cinq pétales échancrés
-et l'habille selon son rôle :
+**Une fleur, plusieurs habits.** Chaque appli garde la même fleur de sakura en verre rose lumineux
+(direction A de `PROMPTS.md`, générée dans ChatGPT) et l'habille selon son rôle :
 
 | Appli | Logo | Idée |
 |---|---|---|
-| Sakura PC | `logo/sakura-pc.svg` | la fleur de base, étamines roses |
-| Sakura Launcher | `logo/launcher.svg` | un bouton « lecture » au cœur |
-| Sakura Light | `logo/light.svg` | fleur néon lumineuse sur fond nuit |
-| Sakura Optimizer | `logo/optimizer.svg` | une jauge au cœur |
-| Sakura AI | `logo/ai.svg` | fleur « data » : contours, circuits, nœuds |
+| Sakura PC | `logo/sakura-pc.png` | la fleur seule, étamines dorées |
+| Sakura Launcher | `logo/launcher.png` | un bouton « lecture » au cœur |
+| Sakura Light | `logo/light.png` | contour néon rose |
+| Sakura Optimizer | `logo/optimizer.png` | un éclair et des fissures de lumière |
+| Sakura AI | `logo/ai.png` | fleur « data » : nœuds et pixels qui s'envolent |
 
-Les logos sont générés par `tools/make_logos.py` : on modifie ce script, jamais les SVG à la main.
+- `logo/*.png` : 1024 × 1024, fond transparent.
+- `logo/ico/*.ico` : icônes Windows (16 à 256 px) pour les raccourcis et les fenêtres.
 
 ## Règles
 
