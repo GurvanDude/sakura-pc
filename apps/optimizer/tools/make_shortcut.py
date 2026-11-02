@@ -1,0 +1,23 @@
+"""Crée le raccourci Bureau de Sakura Optimizer. À lancer manuellement."""
+
+import sys
+from pathlib import Path
+import win32com.client
+
+ROOT = Path(__file__).resolve().parents[1]
+REPO = ROOT.parents[1]
+
+
+def main() -> None:
+    shell = win32com.client.Dispatch("WScript.Shell")
+    shortcut = shell.CreateShortCut(str(Path(shell.SpecialFolders("Desktop")) / "Sakura Optimizer.lnk"))
+    shortcut.Targetpath = str(Path(sys.executable).with_name("pythonw.exe"))
+    shortcut.Arguments = f'"{ROOT / "optimizer.py"}"'
+    shortcut.WorkingDirectory = str(ROOT)
+    shortcut.IconLocation = str(REPO / "design" / "logo" / "ico" / "optimizer.ico")
+    shortcut.Description = "Sakura Optimizer — ton PC expliqué simplement"
+    shortcut.save()
+
+
+if __name__ == "__main__":
+    main()

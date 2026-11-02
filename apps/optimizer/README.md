@@ -1,26 +1,24 @@
 # Sakura Optimizer
 
-Sakura Optimizer surveille le PC et explique simplement pourquoi il rame.
-
-## Prérequis
-
-```powershell
-pip install -r requirements.txt
-```
+Sakura Optimizer explique simplement ce que fait le PC et propose des gestes concrets quand quelque chose mérite
+de l'attention.
 
 ## Lancement
 
+Double-cliquer sur le raccourci **Sakura Optimizer** du Bureau, ou lancer sans terminal :
+
 ```powershell
-python optimizer.py monitor
+pythonw optimizer.py
 ```
 
-Le moniteur affiche en temps réel le CPU, la RAM, le GPU, les disques, les températures et les processus les
-plus gourmands. `Ctrl+C` permet de le quitter proprement.
+Le raccourci peut être créé une fois avec `python tools/make_shortcut.py`.
 
-Pour choisir la fréquence d'actualisation, faire une seule mesure ou obtenir du JSON :
+## Outil technique
+
+Le moniteur terminal reste disponible pour le diagnostic technique :
 
 ```powershell
-python optimizer.py monitor --interval 0.5
+python optimizer.py monitor
 python optimizer.py monitor --once
 python optimizer.py monitor --json
 ```
@@ -30,7 +28,5 @@ python optimizer.py monitor --json
 Depuis la racine du dépôt :
 
 ```powershell
-python -m pytest apps/optimizer/tests
+python -m pytest apps/optimizer/tests -q
 ```
-
-La suite du projet est décrite dans la [feuille de route](../../docs/roadmaps/optimizer.md).
