@@ -1,0 +1,4 @@
+psutil>=6.1  # Mesures du système
+rich>=13  # Affichage dans le terminal
+pywebview>=5  # Fenêtre simple
+pywin32>=308  # Noms des programmes et raccourci Windows
