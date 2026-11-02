@@ -9,7 +9,11 @@ OPTIMIZER = Path(__file__).resolve().parents[1] / 'optimizer.py'
 
 
 def test_monitor():
-    result = subprocess.run([sys.executable, str(OPTIMIZER), 'monitor'], capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, str(OPTIMIZER), 'monitor', '--once'],
+        capture_output=True,
+        text=True, encoding="utf-8",
+    )
 
     assert result.returncode == 0
 
