@@ -2,7 +2,7 @@
 
 **Fini quand :** tu lui dis « lance mon setup de code » et tout s'ouvre, sans rien casser.
 
-- [ ] 1. **Cerveau** : LLM local (Ollama) en chat simple dans une fenêtre Sakura.
+- [x] 1. **Cerveau** : LLM local (Ollama) en chat simple dans une fenêtre Sakura.
 - [ ] 2. **Outils** : ouvrir une appli, chercher un fichier, régler le volume, avec confirmation avant toute action risquée.
 - [ ] 3. **Branchement Optimizer** : « pourquoi mon PC lag ? » obtient une vraie réponse.
 - [ ] 4. **Voix** : Whisper en local, puis mot d'éveil « Hey Sakura ».
