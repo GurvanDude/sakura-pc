@@ -128,11 +128,9 @@ def test_gpu_additionne_par_moteur_et_prend_le_maximum():
     assert gpu == {"percent": 60.0, "vram_used_gb": 3.0, "vram_total_gb": 16.0}
 
 
-def test_temperatures_sans_dll(tmp_path: Path):
-    result = read_temps(
-        tmp_path / "LibreHardwareMonitorLib.dll",
-        cache_path=tmp_path / "temps.json",
-    )
+def test_temperatures_sans_dll(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path))
+    result = read_temps(tmp_path / "LibreHardwareMonitorLib.dll")
 
     assert result["source"] is None
     assert result["reason"] == "LibreHardwareMonitor n'est pas installé"
@@ -144,25 +142,42 @@ def test_temperature_nulle_est_absente():
     assert _rounded_temperature(151) is None
 
 
-def test_fichier_admin_recent_est_utilise_sans_dll(tmp_path: Path):
-    cache = tmp_path / "temps.json"
+def test_fichier_admin_recent_est_utilise_sans_dll(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path))
+    cache = tmp_path / "SakuraPC" / "temps" / "temps.json"
+    cache.parent.mkdir(parents=True)
     cache.write_text(json.dumps({
         "time": time.time(), "cpu": 52, "gpu": 41, "gpu_hotspot": 48,
         "cpu_clock_mhz": 4500, "cpu_power_w": 65, "disks": {},
     }), encoding="utf-8")
 
-    result = read_temps(tmp_path / "absente.dll", cache_path=cache)
+    result = read_temps(tmp_path / "absente.dll")
 
     assert result["cpu"] == 52.0
     assert result["source"] == "lecteur admin"
     assert result["reason"] is None
 
 
-def test_fichier_admin_perime_est_ignore_sans_dll(tmp_path: Path):
-    cache = tmp_path / "temps.json"
+def test_fichier_admin_perime_est_ignore_sans_dll(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path))
+    cache = tmp_path / "SakuraPC" / "temps" / "temps.json"
+    cache.parent.mkdir(parents=True)
     cache.write_text(json.dumps({"time": time.time() - 11, "cpu": 52}), encoding="utf-8")
 
-    result = read_temps(tmp_path / "absente.dll", cache_path=cache)
+    result = read_temps(tmp_path / "absente.dll")
+
+    assert result["cpu"] is None
+    assert result["source"] is None
+    assert result["reason"] == "LibreHardwareMonitor n'est pas installé"
+
+
+def test_fichier_admin_sans_cpu_est_ignore_sans_dll(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path))
+    cache = tmp_path / "SakuraPC" / "temps" / "temps.json"
+    cache.parent.mkdir(parents=True)
+    cache.write_text(json.dumps({"time": time.time(), "cpu": None, "gpu": 41}), encoding="utf-8")
+
+    result = read_temps(tmp_path / "absente.dll")
 
     assert result["cpu"] is None
     assert result["source"] is None
