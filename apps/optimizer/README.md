@@ -16,7 +16,7 @@ Le raccourci peut être créé une fois avec `python tools/make_shortcut.py`.
 ## Températures
 
 Il faut LibreHardwareMonitor 0.9.6 (`LibreHardwareMonitor.zip`, GitHub officiel), extrait dans
-`%APPDATA%SakuraPCendorLibreHardwareMonitor` ou dans `apps/optimizer/vendor/LibreHardwareMonitor` (ignoré par Git).
+`%APPDATA%\SakuraPC\vendor\LibreHardwareMonitor` ou dans `apps/optimizer/vendor/LibreHardwareMonitor` (ignoré par Git).
 
 Pour voir la température du processeur :
 
