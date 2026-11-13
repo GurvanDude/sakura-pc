@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import math
 from pathlib import Path
+import time
 from typing import Any
 
 from core import paths
@@ -19,6 +22,8 @@ def _empty(reason: str | None = None) -> dict[str, Any]:
         "cpu": None,
         "gpu": None,
         "gpu_hotspot": None,
+        "cpu_clock_mhz": None,
+        "cpu_power_w": None,
         "disks": {},
         "source": None,
         "reason": reason,
@@ -63,55 +68,131 @@ def _hardware_tree(hardware: Any):
         yield from _hardware_tree(child)
 
 
-def _temperature_sensors(hardware: Any) -> list[tuple[str, float]]:
-    """Renvoie les capteurs de température valides d'un matériel."""
+def _sensors(hardware: Any, sensor_type: str) -> list[tuple[str, float]]:
+    """Renvoie les capteurs renseignés d'un type donné."""
     values = []
     for sensor in hardware.Sensors:
-        if str(sensor.SensorType) != "Temperature" or sensor.Value is None:
+        if str(sensor.SensorType) != sensor_type or sensor.Value is None:
             continue
-        values.append((str(sensor.Name), float(sensor.Value)))
+        try:
+            values.append((str(sensor.Name), float(sensor.Value)))
+        except (TypeError, ValueError, OverflowError):
+            continue
     return values
 
 
-def read_temps(dll_path: Path | None = None) -> dict[str, Any]:
-    """Lit les températures sans jamais propager une erreur de matériel."""
+def _valid_temperature(value: Any) -> float | None:
+    """Écarte les températures absentes ou physiquement incohérentes."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if math.isfinite(number) and 0 < number <= 150 else None
+
+
+def _rounded_temperature(value: Any) -> float | None:
+    valid = _valid_temperature(value)
+    return round(valid, 1) if valid is not None else None
+
+
+def _positive(value: Any) -> float | None:
+    """Normalise une mesure qui n'a de sens qu'au-dessus de zéro."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return round(number, 1) if math.isfinite(number) and number > 0 else None
+
+
+def read_direct(dll_path: Path | None = None) -> dict[str, Any]:
+    """Lit directement le matériel, sans jamais propager une erreur."""
     path = dll_path or paths.USER / "vendor" / "LibreHardwareMonitor" / "LibreHardwareMonitorLib.dll"
     if not path.is_file():
         return _empty("LibreHardwareMonitor n'est pas installé")
 
     try:
         computer = _load_computer(path)
-        cpu_candidates: list[tuple[str, float]] = []
-        gpu_candidates: list[tuple[str, float]] = []
+        cpu_temperatures: list[tuple[str, float]] = []
+        gpu_temperatures: list[tuple[str, float]] = []
+        cpu_clocks: list[float] = []
+        cpu_powers: list[tuple[str, float]] = []
         disks: dict[str, float] = {}
 
         for root in computer.Hardware:
             kind = str(root.HardwareType).lower()
             root_temperatures: list[tuple[str, float]] = []
             for hardware in _hardware_tree(root):
-                root_temperatures.extend(_temperature_sensors(hardware))
+                root_temperatures.extend(_sensors(hardware, "Temperature"))
+                if "cpu" in kind:
+                    cpu_clocks.extend(
+                        value for name, value in _sensors(hardware, "Clock")
+                        if name.startswith("Core #") and value > 0
+                    )
+                    cpu_powers.extend(_sensors(hardware, "Power"))
 
             if "cpu" in kind:
-                cpu_candidates.extend(root_temperatures)
+                cpu_temperatures.extend(root_temperatures)
             elif "gpu" in kind:
-                gpu_candidates.extend(root_temperatures)
-            elif "storage" in kind and root_temperatures:
-                disks[str(root.Name)] = round(root_temperatures[0][1], 1)
+                gpu_temperatures.extend(root_temperatures)
+            elif "storage" in kind:
+                temperature = next(
+                    (_rounded_temperature(value) for _, value in root_temperatures
+                     if _valid_temperature(value) is not None),
+                    None,
+                )
+                if temperature is not None:
+                    disks[str(root.Name)] = temperature
 
-        cpu = _preferred(cpu_candidates, ("Core (Tctl/Tdie)", "Tctl"), fallback=True)
-        gpu = _preferred(gpu_candidates, ("GPU Core",))
-        hotspot = _preferred(gpu_candidates, ("GPU Hot Spot",))
-        reason = None if cpu is not None else "température CPU : droits admin requis"
+        cpu = _rounded_temperature(_preferred(cpu_temperatures, ("Core (Tctl/Tdie)", "Tctl"), fallback=True))
+        gpu = _rounded_temperature(_preferred(gpu_temperatures, ("GPU Core",)))
+        hotspot = _rounded_temperature(_preferred(gpu_temperatures, ("GPU Hot Spot",)))
+        package_power = _preferred(cpu_powers, ("Package", "CPU Package"))
+        reason = (
+            None if cpu is not None
+            else "température du processeur : il faut installer le lecteur de températures"
+        )
         return {
-            "cpu": _rounded(cpu),
-            "gpu": _rounded(gpu),
-            "gpu_hotspot": _rounded(hotspot),
+            "cpu": cpu,
+            "gpu": gpu,
+            "gpu_hotspot": hotspot,
+            "cpu_clock_mhz": _positive(sum(cpu_clocks) / len(cpu_clocks)) if cpu_clocks else None,
+            "cpu_power_w": _positive(package_power),
             "disks": disks,
             "source": "LibreHardwareMonitor",
             "reason": reason,
         }
     except Exception as exc:
         return _empty(f"LibreHardwareMonitor indisponible : {exc}")
+
+
+def read_temps(
+    dll_path: Path | None = None,
+    cache_path: Path | None = None,
+) -> dict[str, Any]:
+    """Préfère une mesure admin récente, puis tente la lecture directe."""
+    relay_file = cache_path or paths.USER / "temps.json"
+    try:
+        cached = json.loads(relay_file.read_text(encoding="utf-8"))
+        age = time.time() - float(cached.get("time"))
+        if isinstance(cached, dict) and 0 <= age < 10 and _valid_temperature(cached.get("cpu")) is not None:
+            result = dict(cached)
+            result["cpu"] = _rounded_temperature(result.get("cpu"))
+            result["gpu"] = _rounded_temperature(result.get("gpu"))
+            result["gpu_hotspot"] = _rounded_temperature(result.get("gpu_hotspot"))
+            result["cpu_clock_mhz"] = _positive(result.get("cpu_clock_mhz"))
+            result["cpu_power_w"] = _positive(result.get("cpu_power_w"))
+            disks = result.get("disks")
+            result["disks"] = {
+                str(name): temperature
+                for name, value in (disks.items() if isinstance(disks, dict) else [])
+                if (temperature := _rounded_temperature(value)) is not None
+            }
+            result["source"] = "lecteur admin"
+            result["reason"] = None
+            return result
+    except Exception:
+        pass
+    return read_direct(dll_path)
 
 
 def _preferred(
@@ -123,8 +204,3 @@ def _preferred(
             if name == wanted:
                 return value
     return sensors[0][1] if fallback and sensors else None
-
-
-def _rounded(value: float | None) -> float | None:
-    """Arrondit une température quand elle existe."""
-    return round(value, 1) if value is not None else None

@@ -3,9 +3,10 @@
 from collections import namedtuple
 import json
 from pathlib import Path
+import time
 
 from sakura_opt.sensors import BYTES_PER_GB, BYTES_PER_MB, Sampler
-from sakura_opt.temps import read_temps
+from sakura_opt.temps import _rounded_temperature, read_temps
 
 
 Disk = namedtuple("Disk", "read_bytes write_bytes busy_time")
@@ -128,8 +129,42 @@ def test_gpu_additionne_par_moteur_et_prend_le_maximum():
 
 
 def test_temperatures_sans_dll(tmp_path: Path):
-    result = read_temps(tmp_path / "LibreHardwareMonitorLib.dll")
+    result = read_temps(
+        tmp_path / "LibreHardwareMonitorLib.dll",
+        cache_path=tmp_path / "temps.json",
+    )
 
+    assert result["source"] is None
+    assert result["reason"] == "LibreHardwareMonitor n'est pas installé"
+
+
+def test_temperature_nulle_est_absente():
+    assert _rounded_temperature(0) is None
+    assert _rounded_temperature(-1) is None
+    assert _rounded_temperature(151) is None
+
+
+def test_fichier_admin_recent_est_utilise_sans_dll(tmp_path: Path):
+    cache = tmp_path / "temps.json"
+    cache.write_text(json.dumps({
+        "time": time.time(), "cpu": 52, "gpu": 41, "gpu_hotspot": 48,
+        "cpu_clock_mhz": 4500, "cpu_power_w": 65, "disks": {},
+    }), encoding="utf-8")
+
+    result = read_temps(tmp_path / "absente.dll", cache_path=cache)
+
+    assert result["cpu"] == 52.0
+    assert result["source"] == "lecteur admin"
+    assert result["reason"] is None
+
+
+def test_fichier_admin_perime_est_ignore_sans_dll(tmp_path: Path):
+    cache = tmp_path / "temps.json"
+    cache.write_text(json.dumps({"time": time.time() - 11, "cpu": 52}), encoding="utf-8")
+
+    result = read_temps(tmp_path / "absente.dll", cache_path=cache)
+
+    assert result["cpu"] is None
     assert result["source"] is None
     assert result["reason"] == "LibreHardwareMonitor n'est pas installé"
 

@@ -13,6 +13,25 @@ pythonw optimizer.py
 
 Le raccourci peut être créé une fois avec `python tools/make_shortcut.py`.
 
+## Températures
+
+Pour voir la température du processeur :
+
+1. Ouvre **PowerShell en administrateur**.
+2. Colle cette ligne depuis la racine du dépôt :
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File apps/optimizer/tools/install_temps_task.ps1
+   ```
+
+3. Réponds **O**. C'est tout : le lecteur démarrera tout seul avec Windows.
+
+Pour le retirer, ouvre de nouveau PowerShell en administrateur et colle :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File apps/optimizer/tools/install_temps_task.ps1 -Uninstall
+```
+
 ## Outil technique
 
 Le moniteur terminal reste disponible pour le diagnostic technique :
