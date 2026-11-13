@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 import time
 from typing import Any
@@ -105,10 +106,19 @@ def _positive(value: Any) -> float | None:
 
 
 def _find_dll() -> Path:
-    """LibreHardwareMonitor : dans le dossier utilisateur, sinon dans apps/optimizer/vendor (ignoré par Git)."""
+    """Cherche d'abord la copie protégée, puis les emplacements de développement."""
     name = Path("LibreHardwareMonitor") / "LibreHardwareMonitorLib.dll"
-    candidates = [paths.USER / "vendor" / name, paths.app("optimizer") / "vendor" / name]
+    candidates = [
+        _program_data() / "SakuraPC" / "temps" / name,
+        paths.USER / "vendor" / name,
+        paths.app("optimizer") / "vendor" / name,
+    ]
     return next((c for c in candidates if c.is_file()), candidates[0])
+
+
+def _program_data() -> Path:
+    """Renvoie ProgramData, surchargeable par l'environnement pour les tests."""
+    return Path(os.environ.get("PROGRAMDATA", os.environ.get("ProgramData", r"C:\ProgramData")))
 
 
 def read_direct(dll_path: Path | None = None) -> dict[str, Any]:
@@ -172,12 +182,9 @@ def read_direct(dll_path: Path | None = None) -> dict[str, Any]:
         return _empty(f"LibreHardwareMonitor indisponible : {exc}")
 
 
-def read_temps(
-    dll_path: Path | None = None,
-    cache_path: Path | None = None,
-) -> dict[str, Any]:
+def read_temps(dll_path: Path | None = None) -> dict[str, Any]:
     """Préfère une mesure admin récente, puis tente la lecture directe."""
-    relay_file = cache_path or paths.USER / "temps.json"
+    relay_file = _program_data() / "SakuraPC" / "temps" / "temps.json"
     try:
         cached = json.loads(relay_file.read_text(encoding="utf-8"))
         age = time.time() - float(cached.get("time"))
