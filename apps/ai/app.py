@@ -43,10 +43,13 @@ def _logger() -> logging.Logger:
 class Api:
     """Fonctions accessibles depuis l'interface."""
 
+    # Attributs privés (_) : pywebview explore tout attribut public du js_api,
+    # et se perd dans la fenêtre native si on lui en donne une.
+
     def __init__(self, history: ChatHistory | None = None, logger: logging.Logger | None = None) -> None:
-        self.chat = history or ChatHistory()
-        self.logger = logger or _logger()
-        self.window: Any = None
+        self._chat = history or ChatHistory()
+        self._logger = logger or _logger()
+        self._window: Any = None
         self._lock = threading.Lock()
         self._busy = False
         self._stop = threading.Event()
@@ -56,7 +59,7 @@ class Api:
         return {"ok": ok, "message": message}
 
     def history(self) -> list[dict[str, str]]:
-        return list(self.chat.messages)
+        return list(self._chat.messages)
 
     def send(self, text: str) -> dict[str, Any]:
         text = text.strip() if isinstance(text, str) else ""
@@ -68,11 +71,11 @@ class Api:
             self._busy = True
             self._stop.clear()
             try:
-                self.chat.append("user", text)
-                messages = list(self.chat.messages)
+                self._chat.append("user", text)
+                messages = list(self._chat.messages)
             except OSError:
                 self._busy = False
-                self.logger.exception("Impossible d'enregistrer un nouveau message")
+                self._logger.exception("Impossible d'enregistrer un nouveau message")
                 return {"ok": False, "message": "Le message n'a pas pu être enregistré. Réessaie."}
         threading.Thread(
             target=self._answer,
@@ -91,17 +94,17 @@ class Api:
             if self._busy:
                 return {"ok": False, "message": "Arrête d'abord la réponse en cours."}
             try:
-                self.chat.clear()
+                self._chat.clear()
             except OSError:
-                self.logger.exception("Impossible de vider la conversation")
+                self._logger.exception("Impossible de vider la conversation")
                 return {"ok": False, "message": "La discussion n'a pas pu être effacée. Réessaie."}
         return {"ok": True}
 
     def _js(self, function: str, value: str | None = None) -> None:
-        if self.window is None:
+        if self._window is None:
             return
         argument = "" if value is None else json.dumps(value, ensure_ascii=False)
-        self.window.evaluate_js(f"{function}({argument})")
+        self._window.evaluate_js(f"{function}({argument})")
 
     def _answer(self, messages: list[dict[str, str]]) -> None:
         started = time.monotonic()
@@ -125,14 +128,14 @@ class Api:
             answer = brain.chat_stream(messages, receive, self._stop)
             flush()
             if answer:
-                self.chat.append("assistant", answer)
+                self._chat.append("assistant", answer)
             self._js("onDone")
             duration = time.monotonic() - started
-            self.logger.info("Réponse terminée en %.2f s%s", duration, " (arrêtée)" if self._stop.is_set() else "")
+            self._logger.info("Réponse terminée en %.2f s%s", duration, " (arrêtée)" if self._stop.is_set() else "")
         except Exception as exc:
             flush()
             message = str(exc) if isinstance(exc, brain.OllamaError) else "Un souci inattendu est arrivé. Réessaie."
-            self.logger.exception("Erreur pendant une réponse")
+            self._logger.exception("Erreur pendant une réponse")
             self._js("onError", message)
         finally:
             with self._lock:
@@ -193,7 +196,7 @@ def run(debug: bool = False) -> None:
         resizable=True,
         background_color=_token("night", "#140818"),
     )
-    api.window = window
+    api._window = window
     window.events.shown += functools.partial(_set_icon, window)
     try:
         webview.start(
