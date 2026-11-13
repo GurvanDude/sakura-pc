@@ -7,7 +7,7 @@
 - [ ] 3. **Branchement Optimizer** : « pourquoi mon PC lag ? » obtient une vraie réponse.
 - [ ] 4. **Voix** : Whisper en local, puis mot d'éveil « Hey Sakura ».
 - [ ] 5. **Mémoire** : elle retient tes habitudes et tes projets.
-- [ ] 6. **Mascotte** (option) : overlay transparent qui se balade, puis réactions au PC, puis voix et lip-sync.
+- [ ] 6. **Mascotte** (option, la version physique est Sakura Robot, voir `robot.md`) : overlay transparent qui se balade, puis réactions au PC, puis voix et lip-sync.
 - [ ] 7. **Plugins** : yeux sur l'écran, brief du matin, aide aux révisions…
 
 Dépend de : Optimizer étape 7 pour l'étape 3.

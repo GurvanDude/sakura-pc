@@ -8,7 +8,7 @@ Garder quand même les données perso hors du dépôt (`core.paths`) pour que ce
 
 ## Règles du dépôt
 - `main` = uniquement ce qui marche. Travailler sur la branche du projet : `launcher`, `lights`, `optimizer`,
-  `ai`, ou `shared` pour `core/`, `design/`, `docs/` et l'outillage. Sous-branches possibles (`optimizer/graphes`).
+  `ai`, `robot`, ou `shared` pour `core/`, `design/`, `docs/` et l'outillage. Sous-branches possibles (`optimizer/graphes`).
 - Une branche ne modifie que son projet (`.github/scripts/branch_guard.py`). Si une appli a besoin d'un
   changement dans `core/`, le faire d'abord sur `shared`, fusionner dans `main`, puis rebaser la branche.
 - Rien de personnel dans le dépôt : tout ce qui est propre au PC passe par `core.paths` (`paths.USER`,
@@ -36,4 +36,4 @@ Garder quand même les données perso hors du dépôt (`core.paths`) pour que ce
   complète de gros fichiers ni d'exploration inutile.
 
 ## Feuilles de route
-- `docs/roadmaps/launcher.md`, `lights.md`, `optimizer.md`, `ai.md`.
+- `docs/roadmaps/launcher.md`, `lights.md`, `optimizer.md`, `ai.md`, `robot.md`.

@@ -9,18 +9,19 @@
 | <img src="design/logo/light.png" width="40"> | **Sakura Light** | Éclairage RGB synchronisé : tempête de sakura au démarrage, ambiances jour / nuit | ✅ utilisé tous les jours |
 | <img src="design/logo/optimizer.png" width="40"> | **Sakura Optimizer** | Surveille le PC et explique pourquoi ça rame | 🚧 en préparation |
 | <img src="design/logo/ai.png" width="40"> | **Sakura AI** | Assistante locale (Ollama) qui pilote le PC, à la voix | 🚧 en préparation |
+| 🤖 | **Sakura Robot** | Sakura AI dans un petit robot posé sous l'écran : visage animé, voix, s'allume avec le PC | 💭 idée |
 
 ## Organisation du dépôt
 
 ```
-apps/        une appli par dossier (launcher, lights, optimizer, ai)
+apps/        une appli par dossier (launcher, lights, optimizer, ai, robot)
 core/        code partagé (chemins, fenêtres Sakura…)
 design/      direction artistique : logos, couleurs, règles
 docs/        feuilles de route de chaque appli
 ```
 
 - **`main` ne contient que ce qui marche.** Chaque appli avance sur sa propre branche
-  (`launcher`, `lights`, `optimizer`, `ai`), le socle commun sur `shared`, puis on fusionne dans `main`.
+  (`launcher`, `lights`, `optimizer`, `ai`, `robot`), le socle commun sur `shared`, puis on fusionne dans `main`.
 - **Une branche ne touche que son projet** : vérifié par GitHub à chaque push
   (`.github/scripts/branch_guard.py`) et en local par un hook (`git config core.hooksPath .githooks`).
 - **Rien de personnel dans le dépôt** : la config, les journaux, les jaquettes et les icônes vivent
