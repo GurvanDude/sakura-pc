@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sakura Launcher — Réglages</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="petal">桜</span><div><h1>Réglages</h1><p>Sakura Launcher</p></div></div>
+    <nav id="tabs" aria-label="Rubriques">
+      <button class="active" data-tab="daynight">Jour et nuit</button>
+      <button data-tab="games">Jeux</button>
+      <button data-tab="apps">Applis</button>
+      <button data-tab="classic">Classiques</button>
+      <button data-tab="startup">Démarrage</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="daynight" class="panel active">
+      <div class="heading"><div><h2>Jour et nuit</h2><p>Choisissez quand l'ambiance claire apparaît et les images de chaque écran.</p></div></div>
+      <div class="card hours">
+        <label>Début du jour <select id="dayStart"></select></label>
+        <label>Fin du jour <select id="dayEnd"></select></label>
+        <p id="hoursSentence" class="explain"></p>
+        <p class="note">Les nouvelles heures seront prises en compte au prochain démarrage du launcher.</p>
+      </div>
+      <div id="backgrounds" class="background-grid"></div>
+    </section>
+
+    <section id="games" class="panel list-panel"></section>
+    <section id="apps" class="panel list-panel"></section>
+    <section id="classic" class="panel list-panel"></section>
+
+    <section id="startup" class="panel">
+      <div class="heading"><div><h2>Démarrage</h2><p>Gardez un démarrage calme et évitez les sons qui se superposent.</p></div></div>
+      <div class="two-cols">
+        <div class="card"><h3>Programmes empêchés au démarrage</h3><p class="explain">En mode « coquille », le launcher ferme temporairement ces programmes s'ils essaient de s'ouvrir tout seuls.</p><div id="bootBlock"></div></div>
+        <div class="card"><h3>Musique mise en pause</h3><p class="explain">Quand vous lancez un jeu, ces programmes peuvent être mis en pause pour ne pas jouer par-dessus.</p><div id="pausePlaying"></div></div>
+      </div>
+      <div class="card music-card"><h3>Programme de musique</h3><p class="explain">Le bouton Musique du launcher ouvre ce programme.</p><div id="musicEditor"></div></div>
+    </section>
+  </main>
+
+  <div id="savebar" class="savebar" aria-live="polite">
+    <span>Vous avez des changements à enregistrer.</span>
+    <button id="cancelBtn" class="secondary">Annuler</button>
+    <button id="saveBtn" class="primary">Enregistrer</button>
+  </div>
+  <div id="toast" role="status"></div>
+  <script src="settings.js"></script>
+</body>
+</html>
