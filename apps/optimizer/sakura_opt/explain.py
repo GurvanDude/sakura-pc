@@ -79,7 +79,7 @@ def _temperature_hint(value: float, warm: float, hot: float) -> str:
     if value < warm:
         return "normal"
     if value <= hot:
-        return "chaud mais ok"
+        return "chaud, mais ça va"
     return "très chaud"
 
 
@@ -116,6 +116,11 @@ def explain(status: dict[str, Any] | None) -> dict[str, Any]:
     if cpu_temp is not None:
         cpu_figures.append(_figure(
             "Température", f"{_measure(cpu_temp)} °C", _temperature_hint(cpu_temp, 70, 85)
+        ))
+    cpu_clock = _number(temps and temps.get("cpu_clock_mhz"))
+    if cpu_clock is not None and cpu_clock > 0:
+        cpu_figures.append(_figure(
+            "Vitesse", f"{_measure(cpu_clock / 1000)} GHz", "plus c'est haut, plus il va vite"
         ))
     per_core = cpu.get("per_core") if cpu else None
     valid_cores = [_number(value) for value in per_core] if isinstance(per_core, list) else []
@@ -236,6 +241,23 @@ def explain(status: dict[str, Any] | None) -> dict[str, Any]:
 
     tips: list[dict[str, str]] = []
     problems: list[tuple[int, str, str]] = []
+    temp_reason = str(temps.get("reason") or "") if temps else ""
+    if "lecteur de températures" in temp_reason.lower():
+        tips.append({
+            "icon": "🌡️",
+            "text": (
+                "Pour voir la température du processeur, installe le lecteur de températures "
+                "(une seule fois, voir le README)."
+            ),
+        })
+    if cpu_temp is not None and cpu_temp > 85:
+        problems.append((5, "Ton processeur chauffe beaucoup", (
+            "Vérifie que les ventilateurs tournent et dépoussière le PC."
+        )))
+    if hotspot is not None and hotspot > 105:
+        problems.append((4, "Ta carte graphique chauffe beaucoup", (
+            "Vérifie que les ventilateurs tournent et dépoussière le PC."
+        )))
     if fullest and disk_p is not None and disk_p > 90:
         title = f"Ton disque {disk_name} est presque plein"
         text = f"Il ne reste que {_fr(disk_free or 0)} Go. Quand il est plein, Windows ralentit."
