@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sakura AI</title>
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header>
+      <div class="brand"><img src="/logo.png" alt=""><h1>Sakura AI</h1></div>
+      <button id="new-chat" class="quiet-button" type="button">Nouvelle discussion</button>
+    </header>
+
+    <section id="notice" class="notice" hidden>
+      <span id="notice-text"></span>
+      <button id="retry" type="button">Réessayer</button>
+    </section>
+
+    <section id="conversation" class="conversation" aria-live="polite"></section>
+
+    <footer>
+      <div class="composer">
+        <textarea id="message" rows="1" placeholder="Écris ton message…" aria-label="Ton message"></textarea>
+        <button id="send" type="button">Envoyer</button>
+      </div>
+      <p>Entrée pour envoyer · Maj + Entrée pour aller à la ligne</p>
+    </footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
+

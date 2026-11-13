@@ -1,21 +1,52 @@
 # Sakura AI
 
-Assistante locale de Sakura PC : un modèle de langage qui tourne sur le PC (Ollama), dans une fenêtre Sakura.
-Feuille de route : `docs/roadmaps/ai.md`.
+Sakura AI est l'assistante locale de Sakura PC. Cette première version permet de discuter simplement avec un
+modèle Ollama dans une fenêtre Sakura. La conversation en cours reste disponible au prochain démarrage.
 
 ## Prérequis
 
-- [Ollama](https://ollama.com) installé et lancé (il écoute sur `http://127.0.0.1:11434`).
-- Un modèle téléchargé, par exemple `ollama pull qwen3:14b` (16 Go de VRAM sur la RX 6800).
-- Python 3.13 avec `pywebview`.
+- Python 3.13 ;
+- [Ollama](https://ollama.com) installé et lancé ;
+- le modèle `qwen3:14b` téléchargé avec `ollama pull qwen3:14b`.
 
-## Organisation (prévue)
+Installer les dépendances Python :
 
-```
-apps/ai/
-  ai.py        point d'entrée : ouvre la fenêtre Sakura AI
-  brain.py     dialogue avec Ollama (envoi des messages, réponse en continu)
-  ui/          interface du chat (HTML/CSS/JS)
+```powershell
+python -m pip install -r apps/ai/requirements.txt
 ```
 
-Les réglages perso (modèle choisi, historique) vivent dans `%APPDATA%\SakuraPC` via `core.paths`, jamais dans le dépôt.
+Le modèle peut être changé dans `%APPDATA%\SakuraPC\config.json` :
+
+```json
+{
+  "ai": { "model": "qwen3:14b" }
+}
+```
+
+Sans ce réglage, Sakura utilise `qwen3:14b` automatiquement.
+
+## Lancer
+
+Depuis la racine du dépôt :
+
+```powershell
+python apps/ai/ai.py
+```
+
+## Tester
+
+Les tests n'utilisent ni Internet ni un vrai serveur Ollama :
+
+```powershell
+python -m pytest apps/ai/tests -q
+```
+
+## Créer le raccourci Bureau
+
+Après avoir installé les dépendances :
+
+```powershell
+python apps/ai/tools/make_shortcut.py
+```
+
+Le raccourci **Sakura AI** lance la fenêtre sans ouvrir de terminal.
