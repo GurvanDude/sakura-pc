@@ -177,8 +177,11 @@ class Lights:
     def load(self):
         cfg = json.loads(CONFIG.read_text(encoding='utf-8'))
         s = cfg['settings']
-        self.day = (s.get('day_start', 8), s.get('day_end', 18))
-        lights = cfg.get('lights', {})
+        self.apply(cfg.get('lights', {}), (s.get('day_start', 8), s.get('day_end', 18)))
+
+    def apply(self, lights, day_hours):
+        """Applique des réglages déjà lus, sans toucher à config.json."""
+        self.day = day_hours
         self.scenes = {k: {**v, **lights.get('scenes', {}).get(k, {})} for k, v in DEFAULT_SCENES.items()}
         saved = lights.get('programs', {})
         self.programs = {th: {**DEFAULT_PROGRAMS[th], **saved.get(th, {})} for th in DEFAULT_PROGRAMS}
@@ -186,16 +189,24 @@ class Lights:
         for z in self.zones.values():
             z.cfg = {**z.cfg, **self.zone_cfg.get(z.key, {})}
 
+    def resize_configured_zones(self):
+        for key, z in list(self.zones.items()):   # nombre de LED d'une prise ARGB changé
+            want = z.cfg.get('leds')
+            if want and want != z.count and key.startswith('mb:'):
+                self.resize_zone(key, int(want))
+
+    def live(self, lights):
+        with self.lock:
+            self.apply(lights, self.day)
+        self.resize_configured_zones()
+
     def save(self, lights):
         cfg = json.loads(CONFIG.read_text(encoding='utf-8'))
         cfg['lights'] = lights
         CONFIG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding='utf-8')
         with self.lock:
             self.load()
-        for key, z in list(self.zones.items()):   # nombre de LED d'une prise ARGB changé
-            want = z.cfg.get('leds')
-            if want and want != z.count and key.startswith('mb:'):
-                self.resize_zone(key, int(want))
+        self.resize_configured_zones()
 
     def auto_theme(self):
         h = datetime.now().hour
@@ -730,7 +741,7 @@ class Lights:
             'programs': self.programs,
             'effects': [{'id': k, 'name': n, 'desc': d} for k, (n, d) in EFFECTS.items()],
             'hw': self.hw_modes(),
-            'theme': self.theme, 'mode': self.mode,
+            'theme': self.theme, 'mode': self.mode, 'auto': self.auto,
             # juste après la prise de contrôle, iCUE met quelques secondes à afficher nos couleurs sur la RAM
             'connected': {'corsair': bool(self.sdk or self.ram_orgb) and time.time() - self.corsair_t > RAM_WARMUP,
                           'openrgb': bool(self.orgb)},
@@ -820,6 +831,19 @@ class Lights:
                     return self.reply(200, (ROOT / 'ui' / 'studio.html').read_bytes(), 'text/html; charset=utf-8')
                 if url.path == '/api/state':
                     return self.reply(200, lights.state())
+                if url.path == '/api/revert':
+                    with lights.lock:
+                        lights.load()
+                    lights.resize_configured_zones()
+                    return self.reply()
+                if url.path == '/api/theme':
+                    lights.preview = lights.identify = lights.colortest = None
+                    theme = q.get('theme')
+                    if theme in ('day', 'night'):
+                        lights.command('theme', theme)
+                    elif theme == 'auto':
+                        lights.command('auto')
+                    return self.reply()
                 if url.path == '/api/scene':           # rejouer une scène du launcher
                     lights.preview = lights.identify = None
                     sc = q.get('scene')
@@ -863,6 +887,9 @@ class Lights:
             def do_POST(self):
                 if self.path == '/api/save':
                     lights.save(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
+                    return self.reply()
+                if self.path == '/api/live':
+                    lights.live(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
                     return self.reply()
                 self.reply(404)
 
