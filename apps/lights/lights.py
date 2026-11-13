@@ -760,11 +760,18 @@ class Lights:
                 dev.set_colors([RGBColor(0, 0, 0)] * len(dev.leds), fast=True)
         except Exception:
             pass
-        try:
-            chip_reset()
-            log.info("Windows s'éteint : lumières garées dans le noir")
-        except Exception:
-            log.exception('garage dans le noir')
+        # la carte mère reste noire à l'allumage grâce au BIOS (LEDs in System Power On State = Off) : on ne
+        # touche plus à sa puce ici, car si l'extinction est annulée elle clignoterait en boucle
+        log.info("Windows s'éteint : lumières en pause")
+
+    def unpark(self):
+        """L'extinction a été annulée : on reprend comme avant."""
+        if not self.parked:
+            return
+        self.parked = False
+        self.mb_last, self.mb_force = None, True
+        self.ram_last = {}
+        log.info("extinction annulée : lumières reprises")
 
     def watch_shutdown(self):
         """Une fenêtre invisible reçoit l'annonce d'extinction de Windows (WM_QUERYENDSESSION)."""
@@ -778,6 +785,8 @@ class Lights:
             if msg in (0x0011, 0x0016):   # WM_QUERYENDSESSION, WM_ENDSESSION
                 if msg == 0x0011 or wp:
                     self.park()
+                else:                     # WM_ENDSESSION avec FALSE : extinction annulée
+                    self.unpark()
                 return 1 if msg == 0x0011 else 0
             return user32.DefWindowProcW(hwnd, msg, wp, lp)
 
