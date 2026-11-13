@@ -9,7 +9,7 @@
       moniteur technique dans le terminal (`optimizer.py monitor`, `--once`, `--json`).
 - [x] 2. **Fenêtre simple** : fenêtre Sakura avec une phrase-résumé, 4 cartes (chiffres + explication),
       « Qui utilise ton PC ? », conseils, bouton Détails ; raccourci Bureau (`tools/make_shortcut.py`).
-- [ ] 3. **Températures** : LibreHardwareMonitor + petite tâche admin au démarrage (comme OpenRGB).
+- [x] 3. **Températures** : LibreHardwareMonitor + petite tâche admin au démarrage (comme OpenRGB).
 - [ ] 4. **Mémoire** : historique des mesures en SQLite, petits graphes dans la fenêtre.
 - [ ] 5. **Diagnostic** : « pourquoi ça rame » avec un verdict lisible (fenêtre + commande `diagnose`).
 - [ ] 6. **Optimisations sûres** : démarrage Windows, caches, doublons, avec aperçu, annulation et journal.

@@ -104,9 +104,16 @@ def _positive(value: Any) -> float | None:
     return round(number, 1) if math.isfinite(number) and number > 0 else None
 
 
+def _find_dll() -> Path:
+    """LibreHardwareMonitor : dans le dossier utilisateur, sinon dans apps/optimizer/vendor (ignoré par Git)."""
+    name = Path("LibreHardwareMonitor") / "LibreHardwareMonitorLib.dll"
+    candidates = [paths.USER / "vendor" / name, paths.app("optimizer") / "vendor" / name]
+    return next((c for c in candidates if c.is_file()), candidates[0])
+
+
 def read_direct(dll_path: Path | None = None) -> dict[str, Any]:
     """Lit directement le matériel, sans jamais propager une erreur."""
-    path = dll_path or paths.USER / "vendor" / "LibreHardwareMonitor" / "LibreHardwareMonitorLib.dll"
+    path = dll_path or _find_dll()
     if not path.is_file():
         return _empty("LibreHardwareMonitor n'est pas installé")
 
