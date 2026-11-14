@@ -3,7 +3,7 @@ ce qui est branché dessus — ventirad MSI, ventilateurs — via OpenRGB). Clav
 
 Tourne en fond en permanence. Ordres sur http://127.0.0.1:48700 :
     /cmd?do=off | storm | flash | theme | auto   (&theme=day|night)     utilisé par le launcher
-    /studio                                                               l'appli « Sakura Lumières »
+    /studio                                                               l'appli « Sakura Light »
     /api/...                                                              utilisé par l'appli
 Réglages dans config.json → "lights" (modifiables depuis l'appli).
 
@@ -823,7 +823,7 @@ class Lights:
         wc = WNDCLASS(lpfnWndProc=self._wndproc, lpszClassName='SakuraLightsShutdown')
         user32.RegisterClassW(ctypes.byref(wc))
         user32.CreateWindowExW.restype = wintypes.HWND
-        user32.CreateWindowExW(0, 'SakuraLightsShutdown', 'Sakura Lumières', 0, 0, 0, 0, 0, None, None, None, None)
+        user32.CreateWindowExW(0, 'SakuraLightsShutdown', 'Sakura Light', 0, 0, 0, 0, 0, None, None, None, None)
         msg = wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             user32.TranslateMessage(ctypes.byref(msg))

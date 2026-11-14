@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sakura Lumières</title>
+  <title>Sakura Light</title>
   <link rel="stylesheet" href="/design/tokens.css">
   <link rel="stylesheet" href="/design/ui/sakura.css">
   <style>
@@ -262,7 +262,7 @@
     }
 
     const windowElement = $('#lights-window');
-    windowElement.insertBefore(Sakura.titlebar({title: 'Sakura Lumières'}), windowElement.firstChild);
+    windowElement.insertBefore(Sakura.titlebar({title: 'Sakura Light'}), windowElement.firstChild);
     Sakura.tabs(document.querySelector('.sk-tabs'));
     savebar = Sakura.savebar({onSave: saveChanges, onCancel: cancelChanges, message: 'Des changements attendent'});
     document.body.appendChild(savebar.element);   // hors de .sk-window, sinon le kit la rend « relative » et elle sort de l'écran

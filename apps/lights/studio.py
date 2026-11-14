@@ -1,4 +1,4 @@
-"""Ouvre l'appli « Sakura Lumières » (réglage et aperçu des effets lumineux).
+"""Ouvre l'appli « Sakura Light » (réglage et aperçu des effets lumineux).
 Démarre le programme lumières s'il ne tourne pas déjà.
 
     pythonw studio.py
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     wait_lights()
     api = WindowApi()
     window = webview.create_window(
-        'Sakura Lumières', f'http://127.0.0.1:{lights.PORT}/studio',
+        'Sakura Light', f'http://127.0.0.1:{lights.PORT}/studio',
         width=1280, height=900, frameless=True, easy_drag=False, js_api=api,
     )
     api._bind(window)
