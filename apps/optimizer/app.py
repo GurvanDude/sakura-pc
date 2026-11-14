@@ -17,6 +17,7 @@ from typing import Any, Callable
 from urllib.parse import unquote, urlsplit
 
 from core import paths
+from core import window as sk_window
 from sakura_opt.explain import explain
 from sakura_opt.names import friendly_name
 from sakura_opt.sensors import Sampler
@@ -129,9 +130,9 @@ class Api:
         if self._window is None:
             return
         if self._maximized:
-            self._window.restore()
+            sk_window.restore(self._window)
         else:
-            self._window.maximize()
+            sk_window.maximize(self._window)
         self._maximized = not self._maximized
 
     def close(self) -> None:
