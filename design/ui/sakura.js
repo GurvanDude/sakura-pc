@@ -235,7 +235,8 @@
       if (previous) previous.remove();
       ensureBrushDefs();
       const svg = svgNode("svg", { class: "sk-brush", viewBox: "0 0 200 100", preserveAspectRatio: "none", "aria-hidden": "true" });
-      const group = svgNode("g", { fill: chosen, filter: "url(#sk-ink" + variant + ")" });
+      const group = svgNode("g", { filter: "url(#sk-ink" + variant + ")" });
+      group.style.fill = chosen; // en style, pour accepter aussi var(--sk-...)
       if (variant > 1) group.setAttribute("transform", "translate(0,100) scale(1,-1)");
       (variant % 2 === 0 ? shapeA : shapeB).forEach(function (part) { group.appendChild(svgNode("path", { d: part[0], opacity: part[1] })); });
       svg.appendChild(group);
