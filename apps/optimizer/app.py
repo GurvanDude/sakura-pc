@@ -14,12 +14,14 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from core import paths
 from core import window as sk_window
-from sakura_opt.explain import explain
-from sakura_opt.names import friendly_name
+from sakura_opt.explain import explain, history_view
+from sakura_opt.history import History
+from sakura_opt.history_mutex import acquire_history_mutex
+from sakura_opt.names import add_friendly_names
 from sakura_opt.sensors import Sampler
 
 ROOT = Path(__file__).resolve().parent
@@ -57,38 +59,64 @@ def _open_windows_settings(uri: str) -> None:
 class Monitor:
     """Échantillonne en fond avec un seul Sampler partagé."""
 
-    def __init__(self, sampler: Sampler | None = None) -> None:
+    def __init__(
+        self,
+        sampler: Sampler | None = None,
+        history: History | None = None,
+        mutex_factory: Callable[[], Any | None] = acquire_history_mutex,
+        *,
+        start: bool = True,
+    ) -> None:
         self.sampler = sampler or Sampler()
+        self.history = history or History()
+        self._mutex_factory = mutex_factory
+        self._history_mutex: Any | None = None
+        self._next_history = 0.0
+        self._next_mutex_attempt = 0.0
+        self._stop = threading.Event()
         self.latest: dict[str, Any] | None = None
         self._lock = threading.Lock()
-        threading.Thread(target=self._run, daemon=True, name="optimizer-sampler").start()
+        if start:
+            threading.Thread(target=self._run, daemon=True, name="optimizer-sampler").start()
+            threading.Thread(
+                target=self._history_run, daemon=True, name="optimizer-history"
+            ).start()
 
     def _run(self) -> None:
-        while True:
+        while not self._stop.is_set():
             status = self.sampler.sample()
-            self._add_names(status)
+            add_friendly_names(status)
             with self._lock:
                 self.latest = status
-            time.sleep(1.5)
+            self._stop.wait(1.5)
 
-    @staticmethod
-    def _add_names(status: dict[str, Any]) -> None:
-        """Fait les lectures de noms dans le thread de fond, jamais dans get_view."""
-        known: dict[int, str] = {}
-        for key in ("top_cpu", "top_ram"):
-            rows = status.get(key)
-            if not isinstance(rows, list):
-                continue
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                try:
-                    pid = int(row["pid"])
-                    if pid not in known:
-                        known[pid] = friendly_name(pid, str(row.get("name") or "Programme"))
-                    row["friendly_name"] = known[pid]
-                except (KeyError, TypeError, ValueError):
-                    continue
+    def _history_run(self) -> None:
+        while not self._stop.is_set():
+            status = self.get()
+            if status is not None:
+                self._record_history(status)
+            self._stop.wait(5.0)
+
+    def _record_history(self, status: dict[str, Any], now: float | None = None) -> None:
+        """Enregistre seulement si la fenêtre possède le mutex partagé."""
+        if self._stop.is_set():
+            return
+        current = time.monotonic() if now is None else now
+        if self._history_mutex is None and current >= self._next_mutex_attempt:
+            self._history_mutex = self._mutex_factory()
+            self._next_mutex_attempt = current + 30.0
+        if self._history_mutex is not None and current >= self._next_history:
+            try:
+                self.history.record(status, status.get("temps"))
+            except Exception:
+                pass
+            self._next_history = current + 5.0
+
+    def close(self) -> None:
+        self._stop.set()
+        if self._history_mutex is not None:
+            self._history_mutex.close()
+            self._history_mutex = None
 
     def get(self) -> dict[str, Any] | None:
         with self._lock:
@@ -96,6 +124,14 @@ class Monitor:
 
 
 class Api:
+    HISTORY_PERIODS = {
+        "15m": (15 * 60, "les 15 dernières minutes"),
+        "1h": (60 * 60, "la dernière heure"),
+        "6h": (6 * 60 * 60, "les 6 dernières heures"),
+        "24h": (24 * 60 * 60, "les dernières 24 heures"),
+        "7j": (7 * 24 * 60 * 60, "les 7 derniers jours"),
+    }
+
     def __init__(
         self,
         monitor: Monitor,
@@ -103,6 +139,7 @@ class Api:
         theme_path: Path | None = None,
         config_path: Path | None = None,
         opener: Callable[[str], Any] | None = None,
+        history: History | None = None,
     ) -> None:
         self._monitor = monitor
         self._window: Any | None = None
@@ -110,6 +147,24 @@ class Api:
         self._theme_path = Path(theme_path) if theme_path is not None else paths.USER / "optimizer.json"
         self._config_path = Path(config_path) if config_path is not None else paths.CONFIG
         self._opener = opener or _open_windows_settings
+        self._history = history or History()
+        self._preferences_lock = threading.Lock()
+
+    def _preferences(self) -> dict[str, Any]:
+        try:
+            value = json.loads(self._theme_path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else {}
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _save_preference(self, key: str, value: str) -> None:
+        with self._preferences_lock:
+            preferences = self._preferences()
+            preferences[key] = value
+            self._theme_path.parent.mkdir(parents=True, exist_ok=True)
+            self._theme_path.write_text(
+                json.dumps(preferences, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
 
     def get_view(self) -> dict[str, Any]:
         status = self._monitor.get()
@@ -140,21 +195,31 @@ class Api:
             self._window.destroy()
 
     def get_theme(self) -> str:
-        try:
-            theme = json.loads(self._theme_path.read_text(encoding="utf-8")).get("theme")
-            if theme in ("day", "night"):
-                return theme
-        except (OSError, AttributeError, json.JSONDecodeError):
-            pass
+        theme = self._preferences().get("theme")
+        if theme in ("day", "night"):
+            return theme
         return _launcher_theme(self._config_path)
 
     def set_theme(self, theme: str) -> str:
         clean = "night" if theme == "night" else "day"
-        self._theme_path.parent.mkdir(parents=True, exist_ok=True)
-        self._theme_path.write_text(
-            json.dumps({"theme": clean}, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        self._save_preference("theme", clean)
         return clean
+
+    def get_history_period(self) -> str:
+        period = self._preferences().get("history_period")
+        return period if period in self.HISTORY_PERIODS else "1h"
+
+    def set_history_period(self, period: str) -> str:
+        clean = period if period in self.HISTORY_PERIODS else "1h"
+        self._save_preference("history_period", clean)
+        return clean
+
+    def get_history(self, period: str) -> dict[str, Any]:
+        clean = period if period in self.HISTORY_PERIODS else "1h"
+        seconds, label = self.HISTORY_PERIODS[clean]
+        series = self._history.query(seconds)
+        summary = self._history.summary(seconds)
+        return {"series": series, "view": history_view(series, summary, label)}
 
     def free_space(self) -> None:
         """Ouvre les réglages Windows sans supprimer le moindre fichier."""
@@ -184,9 +249,16 @@ def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
             self.end_headers()
 
         def do_GET(self) -> None:  # noqa: N802 - nom imposé par http.server
-            request_path = unquote(urlsplit(self.path).path)
+            request = urlsplit(self.path)
+            request_path = unquote(request.path)
             if request_path == "/api/view":
                 payload = json.dumps(api.get_view(), ensure_ascii=False).encode("utf-8")
+                self._headers(200, "application/json; charset=utf-8", len(payload))
+                self.wfile.write(payload)
+                return
+            if request_path == "/api/history":
+                period = parse_qs(request.query).get("period", ["1h"])[0]
+                payload = json.dumps(api.get_history(period), ensure_ascii=False).encode("utf-8")
                 self._headers(200, "application/json; charset=utf-8", len(payload))
                 self.wfile.write(payload)
                 return
@@ -243,5 +315,6 @@ def run(debug: bool = False) -> None:
             storage_path=str(paths.USER / ".webview"),
         )
     finally:
+        monitor.close()
         server.shutdown()
         server.server_close()

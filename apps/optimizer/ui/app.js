@@ -138,6 +138,173 @@
       : '—';
   }
 
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const HISTORY_PERIODS = new Set(['15m', '1h', '6h', '24h', '7j']);
+  const HISTORY_SECONDS = { '15m': 900, '1h': 3600, '6h': 21600, '24h': 86400, '7j': 604800 };
+  let historyPeriod = '1h';
+
+  const chartConfigs = {
+    activity: {
+      max: 100,
+      lines: [
+        { field: 'cpu', label: 'processeur', unit: '%', color: 'cpu' },
+        { field: 'gpu', label: 'carte graphique', unit: '%', color: 'gpu' }
+      ],
+      tooltip: [
+        { field: 'cpu', label: 'processeur', unit: '%' },
+        { field: 'cpu_temp', label: '', unit: '°C' },
+        { field: 'gpu', label: 'carte graphique', unit: '%' }
+      ]
+    },
+    temperature: {
+      max: 100,
+      lines: [
+        { field: 'cpu_temp', label: 'processeur', unit: '°C', color: 'cpu' },
+        { field: 'gpu_temp', label: 'carte graphique', unit: '°C', color: 'gpu' }
+      ]
+    },
+    memory: {
+      max: 100,
+      lines: [{ field: 'ram', label: 'mémoire', unit: '%', color: 'ram' }]
+    }
+  };
+
+  function svgElement(tag, attributes = {}) {
+    const element = document.createElementNS(SVG_NS, tag);
+    Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+    return element;
+  }
+
+  function finite(value) {
+    const parsed = Number(value);
+    return value !== null && value !== undefined && Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function historyTime(timestamp) {
+    return new Date(timestamp * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function linePath(points) {
+    return points.map((point, index) => (index ? 'L' : 'M') + point[0].toFixed(1) + ',' + point[1].toFixed(1)).join(' ');
+  }
+
+  function chartSegments(series, field, x, y, gapLimit) {
+    const result = [];
+    let current = [];
+    series.forEach((point, index) => {
+      const value = finite(point[field]);
+      const previous = index ? series[index - 1] : null;
+      const gap = previous ? Number(point.t) - Number(previous.t) : 0;
+      if (value === null || (current.length && gap > gapLimit)) {
+        if (current.length) result.push(current);
+        current = [];
+      }
+      if (value !== null) current.push([x(Number(point.t)), y(value)]);
+    });
+    if (current.length) result.push(current);
+    return result;
+  }
+
+  function tooltipText(point, fields) {
+    const pieces = fields.map(field => {
+      const value = finite(point[field.field]);
+      if (value === null) return null;
+      const formatted = value.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+      return (field.label ? field.label + ' ' : '') + formatted + ' ' + field.unit;
+    }).filter(Boolean);
+    return historyTime(point.t) + (pieces.length ? ' · ' + pieces.join(' · ') : '');
+  }
+
+  function prepareChartHover(card) {
+    const svg = card.querySelector('svg');
+    const tooltip = card.querySelector('.chart-tooltip');
+    svg.addEventListener('pointermove', event => {
+      const data = card._chartData;
+      if (!data || !data.series.length) return;
+      const bounds = svg.getBoundingClientRect();
+      const svgX = (event.clientX - bounds.left) / bounds.width * 620;
+      const ratio = Math.max(0, Math.min(1, (svgX - 36) / (608 - 36)));
+      const wanted = data.first + ratio * data.span;
+      const point = data.series.reduce((closest, candidate) =>
+        Math.abs(Number(candidate.t) - wanted) < Math.abs(Number(closest.t) - wanted) ? candidate : closest
+      , data.series[0]);
+      tooltip.textContent = tooltipText(point, data.fields);
+      tooltip.hidden = false;
+      tooltip.style.left = Math.max(6, Math.min(bounds.width - tooltip.offsetWidth - 6, event.clientX - bounds.left + 9)) + 'px';
+      tooltip.style.top = Math.max(4, event.clientY - bounds.top - 36) + 'px';
+    });
+    svg.addEventListener('pointerleave', () => { tooltip.hidden = true; });
+  }
+
+  function renderChart(card, config, series) {
+    const svg = card.querySelector('svg');
+    const validSeries = series.filter(point => Number.isFinite(Number(point.t)));
+    const times = validSeries.map(point => Number(point.t));
+    const last = times.length ? Math.max(...times) : Date.now() / 1000;
+    const first = times.length ? Math.min(...times) : last - HISTORY_SECONDS[historyPeriod];
+    const span = Math.max(1, last - first);
+    const left = 36, right = 608, top = 10, bottom = 154;
+    const x = value => left + (value - first) / span * (right - left);
+    const y = value => bottom - Math.max(0, Math.min(config.max, value)) / config.max * (bottom - top);
+    const nodes = [];
+    [0, 50, 100].forEach(value => {
+      nodes.push(svgElement('line', { x1: left, x2: right, y1: y(value), y2: y(value), class: 'chart-guide' }));
+    });
+    const differences = times.slice(1).map((value, index) => value - times[index]).filter(value => value > 0).sort((a, b) => a - b);
+    const measuredStep = differences.length ? differences[Math.floor(differences.length / 2)] : HISTORY_SECONDS[historyPeriod] / 120;
+    const usualStep = Math.min(measuredStep, HISTORY_SECONDS[historyPeriod] / 120);
+    config.lines.forEach(line => {
+      chartSegments(validSeries, line.field, x, y, Math.max(1, usualStep * 3)).forEach(points => {
+        if (points.length > 1) {
+          const area = linePath(points) + ' L' + points[points.length - 1][0].toFixed(1) + ',' + bottom + ' L' + points[0][0].toFixed(1) + ',' + bottom + ' Z';
+          nodes.push(svgElement('path', { d: area, class: 'chart-area history-' + line.color }));
+        }
+        nodes.push(svgElement('path', { d: linePath(points), class: 'chart-line history-' + line.color }));
+      });
+    });
+    [0, 1 / 3, 2 / 3, 1].forEach(position => {
+      const timestamp = first + span * position;
+      const label = svgElement('text', {
+        x: x(timestamp), y: 181, class: 'chart-axis',
+        'text-anchor': position === 0 ? 'start' : (position === 1 ? 'end' : 'middle')
+      });
+      label.textContent = historyTime(timestamp);
+      nodes.push(label);
+    });
+    svg.replaceChildren(...nodes);
+    const fields = config.tooltip || config.lines;
+    card._chartData = { series: validSeries, first, span, fields };
+    const gpuKnown = validSeries.some(point => finite(point.gpu_temp) !== null);
+    if (card.dataset.chart === 'temperature') {
+      card.querySelector('.legend-gpu').hidden = !gpuKnown;
+      // aucune température sur la période : on cache la carte plutôt que d'afficher un graphe vide
+      card.hidden = !gpuKnown && !validSeries.some(point => finite(point.cpu_temp) !== null);
+    }
+  }
+
+  function renderHistory(payload) {
+    const series = Array.isArray(payload.series) ? payload.series : [];
+    const view = payload.view && typeof payload.view === 'object' ? payload.view : {};
+    $('#history-sentence').textContent = view.sentence || 'Aucun souvenir pour cette période.';
+    const facts = Array.isArray(view.facts) ? view.facts : [];
+    const factsBox = $('#history-facts');
+    if (factsBox.children.length !== facts.length) {
+      factsBox.replaceChildren(...facts.map(() => {
+        const row = make('div', 'history-fact');
+        row.append(make('span', 'history-fact-label'), make('strong'), make('small'));
+        return row;
+      }));
+    }
+    [...factsBox.children].forEach((row, index) => {
+      row.querySelector('.history-fact-label').textContent = facts[index].label;
+      row.querySelector('strong').textContent = facts[index].value;
+      row.querySelector('small').textContent = facts[index].hint;
+    });
+    document.querySelectorAll('.history-chart').forEach(card => {
+      renderChart(card, chartConfigs[card.dataset.chart], series);
+    });
+  }
+
   function detailData(view, status) {
     const cpu = status.cpu && typeof status.cpu === 'object' ? status.cpu : {};
     const disk = status.disk && typeof status.disk === 'object' ? status.disk : {};
@@ -239,18 +406,46 @@
     if (bridge) {
       try { Sakura.setTheme(await bridge.get_theme()); } catch (_) { /* thème du kit conservé */ }
       Sakura.onThemeChange(theme => { bridge.set_theme(theme); });
+      try { historyPeriod = await bridge.get_history_period(); } catch (_) { /* période par défaut */ }
     }
+    if (!HISTORY_PERIODS.has(historyPeriod)) historyPeriod = '1h';
+    [...$('#history-periods').children].forEach(button => {
+      button.classList.toggle('is-active', button.dataset.period === historyPeriod);
+    });
     const read = bridge
       ? () => bridge.get_view()
       : () => fetch('/api/view', { cache: 'no-store' }).then(response => {
           if (!response.ok) throw new Error('Aperçu indisponible');
           return response.json();
         });
+    const readHistory = bridge
+      ? () => bridge.get_history(historyPeriod)
+      : () => fetch('/api/history?period=' + encodeURIComponent(historyPeriod), { cache: 'no-store' }).then(response => {
+          if (!response.ok) throw new Error('Historique indisponible');
+          return response.json();
+        });
     const refresh = async () => {
       try { render(await read()); } catch (_) { /* nouvel essai au prochain cycle */ }
     };
+    const refreshHistory = async () => {
+      try { renderHistory(await readHistory()); } catch (_) { /* nouvel essai au prochain cycle */ }
+    };
     refresh();
+    refreshHistory();
     window.setInterval(refresh, 1500);
+    window.setInterval(refreshHistory, 10000);
+    $('#history-periods').addEventListener('click', async event => {
+      const period = event.target.dataset ? event.target.dataset.period : null;
+      if (!HISTORY_PERIODS.has(period)) return;
+      historyPeriod = period;
+      [...$('#history-periods').children].forEach(button => {
+        button.classList.toggle('is-active', button.dataset.period === historyPeriod);
+      });
+      if (bridge) {
+        try { await bridge.set_history_period(historyPeriod); } catch (_) { /* affichage quand même */ }
+      }
+      refreshHistory();
+    });
   }
 
   $('#free-space').addEventListener('click', async () => {
@@ -263,5 +458,6 @@
     }
   });
 
+  document.querySelectorAll('.history-chart').forEach(prepareChartHover);
   start();
 }());
