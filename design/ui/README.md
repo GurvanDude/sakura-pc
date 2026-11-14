@@ -25,6 +25,8 @@ Place toute la page dans `.sk-window`. Le thème actif est porté par `<html dat
 - Détails : `.sk-details-toggle`, `.sk-details`.
 - Formulaires : `.sk-input`, `.sk-select`, `.sk-range`, `.sk-swatch`, `.sk-led`, `.sk-seg`.
 - Chat : `.sk-chat`, `.sk-msg--sakura`, `.sk-msg--me`, `.sk-avatar`, `.sk-bubble`, `.sk-typing`, `.sk-composer`, `.sk-hint`.
+- Mini-graphes : `.sk-chart`, `.sk-chart-head`, `.sk-chart-svg` ; les variantes de couleur sont appliquées par `Sakura.chart()`.
+- Colonne latérale : `.sk-layout` contient `.sk-sidebar` (avec `.sk-sidebar-head`, `.sk-sidebar-list`, `.sk-sidebar-item`) et `.sk-layout-main`. Ajoute `.is-active` à l’élément sélectionné.
 - Pinceau libre : ajoute `[data-sk-brush]`. Tu peux donner une couleur avec `data-sk-brush="#f6a9c1"`.
 
 Les couleurs se règlent uniquement avec les variables `--sk-*` définies dans `tokens.css`. Pour une carte néon libre, définis `--sk-n`. Pour une couleur de LED, de pinceau ou de barre, définis `--sk-c`.
@@ -42,6 +44,8 @@ Les couleurs se règlent uniquement avec les variables `--sk-*` définies dans `
 - `Sakura.confirm(options)` : affiche une confirmation et renvoie une promesse booléenne. `into` permet de l'insérer dans un élément.
 - `Sakura.savebar({onSave, onCancel, message})` : renvoie `{element, show(), hide()}`.
 - `Sakura.toast(text, {kind: 'ok'|'warn'})` : affiche un message pendant trois secondes.
+- `Sakura.chart(element, {values, max, kind, label, unit, height})` : dessine un mini-graphe SVG accessible et renvoie `{update(values)}`. `kind` vaut `cpu`, `ram`, `gpu`, `disk` ou `accent`. Le tableau peut être vide ; le graphe suit automatiquement la largeur de son conteneur.
+- `Sakura.sidebar(layout, {toggle: button})` : gère le repli de `.sk-sidebar`, mémorise l’état sur grand écran et la transforme en tiroir sous 760 px. Le bouton reçoit automatiquement `aria-expanded` et `aria-controls` ; Échap ou le voile ferment le tiroir mobile. Renvoie `{open(), close(), toggle()}`.
 - `Sakura.esc(value)` : échappe un texte avant une insertion HTML exceptionnelle. Préfère toujours `textContent`.
 
 Les boutons d'icône doivent avoir un `aria-label`. Les animations sont automatiquement coupées si Windows demande moins de mouvements.

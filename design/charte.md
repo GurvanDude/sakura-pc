@@ -56,7 +56,7 @@ Barre de titre · fond jour/nuit (filigrane, pétales, étoiles, torii) · méda
 indicateur (pinceau / néon) · onglets · boutons principal / secondaire / petit / danger (« Retirer », kaki) ·
 carte douce et ligne de liste · conseil · confirmation d'action risquée (« Oui, … » / « Non, laisse ») ·
 bouton Détails repliable · barre d'enregistrement · toast · curseur, sélecteur, segmenté (Jour / Nuit / Auto) ·
-bulles de chat + zone de saisie + « Sakura écrit… ».
+bulles de chat + zone de saisie + « Sakura écrit… » · mini-graphes d’activité · colonne latérale repliable / tiroir mobile.
 
 ## Maquettes validées par appli
 
