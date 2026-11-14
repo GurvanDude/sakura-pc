@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # racine du dépôt, pour core/
 from core import paths  # noqa: E402
+from core import window as sk_window  # noqa: E402
 
 import launcher
 
@@ -197,9 +198,9 @@ class SettingsApi:
 
     def toggle_maximize(self) -> None:
         if self._maximized:
-            self._window.restore()
+            sk_window.restore(self._window)
         else:
-            self._window.maximize()
+            sk_window.maximize(self._window)
         self._maximized = not self._maximized
 
     def close(self) -> None:
