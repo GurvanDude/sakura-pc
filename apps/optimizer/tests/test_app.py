@@ -13,7 +13,14 @@ from app import Api, Monitor, _serve
 
 class FakeMonitor:
     def get(self):
-        return None
+        return {
+            "cpu": {"percent": 20, "per_core": [25]},
+            "ram": {"percent": 40, "swap_percent": 2},
+            "gpu": {"percent": 30, "vram_used_gb": 2, "vram_total_gb": 16},
+            "disk": {"per_disk": {}, "partitions": [{"mount": "C:\\", "free_gb": 100}]},
+            "temps": {"cpu": 60, "gpu": 55, "gpu_hotspot": 65, "cpu_clock_mhz": 4200},
+            "top_cpu": [], "top_ram": [],
+        }
 
 
 class FakeHistory:
@@ -118,6 +125,10 @@ def test_server_sert_le_kit_et_la_vue_json(local_server):
     with urlopen(local_server + "/api/history?period=1h") as response:
         history = json.load(response)
     assert set(history) == {"series", "view"}
+    with urlopen(local_server + "/api/diagnose?minutes=2") as response:
+        diagnostic = json.load(response)
+    assert diagnostic["minutes"] == 2
+    assert isinstance(diagnostic["findings"], list)
 
 
 @pytest.mark.parametrize(

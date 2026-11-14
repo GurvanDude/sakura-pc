@@ -1,16 +1,22 @@
 """Tests de l'historique local, sans toucher aux données de l'utilisateur."""
 
+import sqlite3
+
 from sakura_opt.explain import history_view
-from sakura_opt.history import History
+from sakura_opt.history import History, NEW_COLUMNS
 
 
 def sample(cpu=20, ram=40, gpu=30, cpu_temp=60, gpu_temp=55, app="Mon jeu"):
     row = {"pid": 12, "name": f"{app}.exe", "friendly_name": app, "cpu_percent": cpu, "ram_mb": 800}
     return {
-        "cpu": {"percent": cpu, "freq_mhz": 4200},
-        "ram": {"percent": ram, "total_gb": 16},
-        "gpu": {"percent": gpu, "vram_used_gb": 3.5},
-        "disk": {"read_mb_s": 12, "write_mb_s": 4},
+        "cpu": {"percent": cpu, "freq_mhz": 4200, "per_core": [12, 82]},
+        "ram": {"percent": ram, "total_gb": 16, "swap_percent": 7},
+        "gpu": {"percent": gpu, "vram_used_gb": 3.5, "vram_total_gb": 16},
+        "disk": {
+            "read_mb_s": 12, "write_mb_s": 4,
+            "per_disk": {"Disque 0": {"busy_percent": 34}},
+            "partitions": [{"mount": "C:\\", "free_gb": 123}],
+        },
         "temps": {"cpu": cpu_temp, "gpu": gpu_temp, "gpu_hotspot": gpu_temp + 8, "cpu_clock_mhz": 4200},
         "top_cpu": [row], "top_ram": [row],
     }
@@ -28,6 +34,34 @@ def test_record_query_et_reduction(tmp_path):
 
     assert 1 < len(rows) <= 6
     assert all(set(("t", "cpu", "ram", "gpu", "cpu_temp", "top_app")) <= set(row) for row in rows)
+    assert rows[-1]["core_max"] == 82
+    assert rows[-1]["swap"] == 7
+    assert rows[-1]["vram_total_gb"] == 16
+    assert rows[-1]["disk_busy"] == 34
+    assert rows[-1]["c_free_gb"] == 123
+    assert rows[-1]["top_cpu_app"] == "Mon jeu"
+    assert rows[-1]["top_ram_gb"] == 0.78
+
+
+def test_migration_ancienne_base_conserve_et_complete_les_lignes(tmp_path):
+    path = tmp_path / "ancienne.db"
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE samples (t REAL NOT NULL, cpu REAL, ram REAL, gpu REAL, "
+                           "vram_gb REAL, cpu_temp REAL, gpu_temp REAL, gpu_hotspot REAL, "
+                           "cpu_clock REAL, disk_read REAL, disk_write REAL, top_app TEXT)")
+        connection.execute("INSERT INTO samples (t, cpu, top_app) VALUES (900, 42, 'Ancien jeu')")
+    history = History(path, now=lambda: 1000)
+
+    old = history.query(200)
+    history.record(sample())
+
+    assert old[0]["cpu"] == 42
+    assert old[0]["core_max"] is None
+    with sqlite3.connect(path) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(samples)")}
+        count = connection.execute("SELECT COUNT(*) FROM samples").fetchone()[0]
+    assert set(NEW_COLUMNS) <= columns
+    assert count == 2
 
 
 def test_summary_max_temperature_heure_et_appli_frequente(tmp_path):

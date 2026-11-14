@@ -21,6 +21,25 @@
             <p class="sk-sub" id="verdict-text">Ça prend juste un instant.</p>
           </div>
         </div>
+        <section class="diagnosis-panel" id="diagnosis" aria-labelledby="diagnosis-heading" hidden>
+          <h2 class="sk-section-title" id="diagnosis-heading">Pourquoi ça rame ?</h2>
+          <p class="sk-sub diagnosis-loading" id="diagnosis-loading" hidden>J'analyse les dernières minutes…</p>
+          <div id="diagnosis-result" hidden>
+            <div class="sk-card diagnosis-verdict">
+              <div class="sk-verdict">
+                <div class="sk-mood" id="diagnosis-mood" aria-hidden="true">😊</div>
+                <div>
+                  <div class="sk-tag" id="diagnosis-tag">ANALYSE TERMINÉE</div>
+                  <h3 class="sk-title" id="diagnosis-title"></h3>
+                  <p class="sk-sub" id="diagnosis-text"></p>
+                </div>
+              </div>
+              <p class="diagnosis-period" id="diagnosis-period"></p>
+            </div>
+            <div class="sk-stack diagnosis-findings" id="diagnosis-findings"></div>
+            <button class="sk-btn sk-btn--secondary" id="close-diagnosis" type="button">Fermer l'analyse</button>
+          </div>
+        </section>
         <div class="sk-grid optimizer-stats" id="stats" aria-label="État du PC">
           <article class="sk-stat sk-stat--cpu" data-card="processeur">
             <div class="sk-stat-label"></div><div class="sk-stat-value"></div>
@@ -86,8 +105,17 @@
       </section>
 
       <section class="sk-section">
+        <div class="diagnosis-controls">
+          <span class="sk-sub">Période analysée</span>
+          <div class="sk-seg" id="diagnosis-periods" aria-label="Période à analyser">
+            <button type="button" data-minutes="2">2 min</button>
+            <button type="button" class="is-active" data-minutes="5">5 min</button>
+            <button type="button" data-minutes="15">15 min</button>
+          </div>
+        </div>
         <div class="sk-actions">
-          <button class="sk-btn sk-btn--primary" id="free-space" type="button">Faire de la place</button>
+          <button class="sk-btn sk-btn--primary" id="run-diagnosis" type="button">Pourquoi ça rame ?</button>
+          <button class="sk-btn sk-btn--secondary" id="free-space" type="button">Faire de la place</button>
           <button class="sk-btn sk-btn--secondary sk-details-toggle" id="details-button"
                   data-label="Détails" type="button">Détails ▾</button>
         </div>

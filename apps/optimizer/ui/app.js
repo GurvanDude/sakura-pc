@@ -38,6 +38,63 @@
     $('#verdict-text').textContent = verdict.text;
   }
 
+  function createDiagnosisFinding() {
+    const card = make('article', 'sk-card diagnosis-finding');
+    const head = make('div', 'diagnosis-finding-head');
+    head.append(make('h3'), make('span', 'sk-stat-state'));
+    const evidence = make('div', 'diagnosis-evidence');
+    const advice = make('ul', 'diagnosis-advice');
+    card.append(head, make('p', 'diagnosis-explanation'), evidence, advice);
+    return card;
+  }
+
+  function renderDiagnosis(result) {
+    const verdict = result.verdict || {};
+    const presentation = verdicts[verdict.mood] || verdicts.ok;
+    $('#diagnosis-mood').textContent = presentation.emoji;
+    $('#diagnosis-tag').textContent = result.enough_data
+      ? 'ANALYSE TERMINÉE' : 'ANALYSE MOINS SÛRE';
+    $('#diagnosis-title').textContent = verdict.title || 'Analyse terminée';
+    $('#diagnosis-text').textContent = verdict.text || '';
+    const minutes = Number(result.minutes) || 5;
+    const minuteText = minutes.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+    $('#diagnosis-period').textContent = 'Analysé : les ' + minuteText + ' dernières minutes'
+      + (result.app ? ', pendant ' + result.app : '') + '.';
+
+    const findings = Array.isArray(result.findings) ? result.findings : [];
+    const box = $('#diagnosis-findings');
+    if (box.children.length !== findings.length) {
+      box.replaceChildren(...findings.map(createDiagnosisFinding));
+    }
+    [...box.children].forEach((card, index) => {
+      const finding = findings[index];
+      card.querySelector('h3').textContent = finding.title;
+      const state = card.querySelector('.sk-stat-state');
+      state.textContent = finding.severity === 'grave' ? 'Important'
+        : (finding.severity === 'attention' ? 'Attention' : 'Information');
+      state.className = 'sk-stat-state ' + (finding.severity === 'info' ? 'is-ok' : 'is-warn');
+      card.querySelector('.diagnosis-explanation').textContent = finding.explanation;
+      const evidence = card.querySelector('.diagnosis-evidence');
+      evidence.replaceChildren(...finding.evidence.map(item => {
+        const row = make('div', 'diagnosis-evidence-row');
+        const label = make('span');
+        const value = make('strong');
+        label.textContent = item.label + ' ·';
+        value.textContent = item.value;
+        row.append(label, value);
+        return row;
+      }));
+      const advice = card.querySelector('.diagnosis-advice');
+      advice.replaceChildren(...finding.advice.map(text => {
+        const item = make('li');
+        item.textContent = text;
+        return item;
+      }));
+    });
+    $('#diagnosis-loading').hidden = true;
+    $('#diagnosis-result').hidden = false;
+  }
+
   function createFigure() {
     const row = make('div', 'stat-figure');
     const line = make('div', 'stat-figure-line');
@@ -142,6 +199,7 @@
   const HISTORY_PERIODS = new Set(['15m', '1h', '6h', '24h', '7j']);
   const HISTORY_SECONDS = { '15m': 900, '1h': 3600, '6h': 21600, '24h': 86400, '7j': 604800 };
   let historyPeriod = '1h';
+  let diagnosisMinutes = 5;
 
   const chartConfigs = {
     activity: {
@@ -424,6 +482,13 @@
           if (!response.ok) throw new Error('Historique indisponible');
           return response.json();
         });
+    const readDiagnosis = () => bridge
+      ? bridge.diagnose(diagnosisMinutes)
+      : fetch('/api/diagnose?minutes=' + encodeURIComponent(diagnosisMinutes), { cache: 'no-store' })
+        .then(response => {
+          if (!response.ok) throw new Error('Diagnostic indisponible');
+          return response.json();
+        });
     const refresh = async () => {
       try { render(await read()); } catch (_) { /* nouvel essai au prochain cycle */ }
     };
@@ -446,7 +511,35 @@
       }
       refreshHistory();
     });
+    $('#diagnosis-periods').addEventListener('click', event => {
+      const minutes = Number(event.target.dataset ? event.target.dataset.minutes : NaN);
+      if (![2, 5, 15].includes(minutes)) return;
+      diagnosisMinutes = minutes;
+      [...$('#diagnosis-periods').children].forEach(button => {
+        button.classList.toggle('is-active', Number(button.dataset.minutes) === diagnosisMinutes);
+      });
+    });
+    $('#run-diagnosis').addEventListener('click', async () => {
+      const panel = $('#diagnosis');
+      panel.hidden = false;
+      $('#diagnosis-result').hidden = true;
+      $('#diagnosis-loading').textContent = "J'analyse les dernières minutes…";
+      $('#diagnosis-loading').hidden = false;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      try {
+        renderDiagnosis(await readDiagnosis());
+      } catch (_) {
+        $('#diagnosis-loading').textContent = "Je n'arrive pas à analyser les dernières minutes pour le moment.";
+      }
+    });
   }
+
+  $('#close-diagnosis').addEventListener('click', () => {
+    $('#diagnosis').hidden = true;
+    $('#diagnosis-result').hidden = true;
+    $('#diagnosis-loading').hidden = true;
+    $('#diagnosis-loading').textContent = "J'analyse les dernières minutes…";
+  });
 
   $('#free-space').addEventListener('click', async () => {
     if (!api()) return;
