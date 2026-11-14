@@ -29,6 +29,14 @@ from core import paths  # noqa: E402
 ROOT = Path(__file__).resolve().parent
 CONFIG = paths.CONFIG
 PORT = 48700
+DESIGN_ROOT = (paths.REPO / 'design').resolve()
+DESIGN_MIME_TYPES = {
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.woff2': 'font/woff2',
+}
 # OpenRGB n'est pas dans le dépôt : chemin dans config.json (settings → openrgb), sinon dans le dossier utilisateur
 OPENRGB = Path(json.loads(CONFIG.read_text(encoding='utf-8'))['settings'].get(
     'openrgb', paths.USER / 'tools' / 'OpenRGB' / 'OpenRGB Windows 64-bit' / 'OpenRGB.exe'))
@@ -86,6 +94,20 @@ EFFECTS = {
     'rain': ('Pluie', "Fond de couleur avec des gouttes plus claires qui tombent au hasard et s'estompent."),
     'police': ('Gyrophare', 'Alternance rapide de deux couleurs.'),
 }
+
+
+def resolve_design_path(url_path, design_root=DESIGN_ROOT):
+    """Résout une URL /design/... sans jamais autoriser une sortie du dossier design."""
+    decoded = urllib.parse.unquote(url_path)
+    if not decoded.startswith('/design/'):
+        return None
+    root = Path(design_root).resolve()
+    try:
+        candidate = (root / decoded.removeprefix('/design/')).resolve()
+        candidate.relative_to(root)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return candidate
 
 
 def hex2rgb(h):
@@ -838,6 +860,12 @@ class Lights:
                     return self.reply()
                 if url.path in ('/', '/studio'):
                     return self.reply(200, (ROOT / 'ui' / 'studio.html').read_bytes(), 'text/html; charset=utf-8')
+                if url.path.startswith('/design/'):
+                    design_file = resolve_design_path(url.path)
+                    if design_file is None or not design_file.is_file():
+                        return self.reply(404)
+                    content_type = DESIGN_MIME_TYPES.get(design_file.suffix.lower(), 'application/octet-stream')
+                    return self.reply(200, design_file.read_bytes(), content_type)
                 if url.path == '/api/state':
                     return self.reply(200, lights.state())
                 if url.path == '/api/revert':

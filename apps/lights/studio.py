@@ -11,6 +11,35 @@ import webview
 import lights
 
 
+class WindowApi:
+    """Commandes appelées par la barre de titre Sakura dans la page."""
+
+    def __init__(self):
+        self._window = None
+        self._maximized = False
+
+    def _bind(self, window):
+        self._window = window
+
+    def minimize(self):
+        if self._window:
+            self._window.minimize()
+
+    def toggle_maximize(self):
+        if not self._window:
+            return
+        if self._maximized:
+            self._window.restore()
+            self._maximized = False
+        else:
+            self._window.maximize()
+            self._maximized = True
+
+    def close(self):
+        if self._window:
+            self._window.destroy()
+
+
 def wait_lights(timeout=15):
     end = time.time() + timeout
     while time.time() < end:
@@ -25,6 +54,10 @@ def wait_lights(timeout=15):
 if __name__ == '__main__':
     lights.ensure_running()
     wait_lights()
-    webview.create_window('Sakura Lumières', f'http://127.0.0.1:{lights.PORT}/studio', width=1280, height=900,
-                          background_color='#0d0a16')
+    api = WindowApi()
+    window = webview.create_window(
+        'Sakura Lumières', f'http://127.0.0.1:{lights.PORT}/studio',
+        width=1280, height=900, frameless=True, easy_drag=False, js_api=api,
+    )
+    api._bind(window)
     webview.start(gui='edgechromium')

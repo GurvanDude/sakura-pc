@@ -1,45 +1,283 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sakura Lumières</title>
-<style>
-:root{--bg:#0d0a16;--card:#1a1428;--card2:#231a36;--ink:#fbeaf3;--soft:#b9a3c9;--pink:#ff4fa3;--violet:#9b4dff;--cyan:#4ff0ff;--line:#3a2c52}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#2a1238,var(--bg) 60%);color:var(--ink);font:15px 'Segoe UI',sans-serif}header{position:sticky;top:0;z-index:10;background:rgba(13,10,22,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}.head{display:flex;align-items:center;gap:14px;max-width:1180px;margin:auto;padding:13px 24px 9px}h1{margin:0;font:700 22px 'Yu Mincho',serif;color:var(--pink)}.jp{color:var(--soft);font-size:13px;letter-spacing:.3em}.status{margin-left:auto;display:flex;gap:10px;font-size:12px;color:var(--soft)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#c33;margin-right:5px}.dot.on{background:#3c8}.tabs{display:flex;gap:6px;max-width:1180px;margin:auto;padding:0 24px 10px;overflow:auto}.tab{white-space:nowrap;border-radius:10px;background:transparent}.tab.active{background:linear-gradient(120deg,rgba(255,79,163,.3),rgba(155,77,255,.3));border-color:var(--pink)}main{max-width:1180px;margin:auto;padding:18px 24px 110px}.panel{display:none}.panel.active{display:block}h2{font:700 19px 'Yu Mincho',serif;margin:26px 0 4px}h2:first-child{margin-top:8px}h2 small{font:400 13px 'Segoe UI';color:var(--soft);margin-left:8px}.lead{color:var(--soft);margin:0 0 14px;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}.card{background:linear-gradient(145deg,var(--card),#171122);border:1px solid var(--line);border-radius:16px;padding:15px 16px;box-shadow:0 10px 28px #0002}.card h3{margin:0 0 4px;font-size:16px}.card .desc{color:var(--soft);font-size:13px;line-height:1.45;margin:0 0 10px}.ambient-card{border-color:#4a315f}.ambient-head{display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:10px}.copy{flex:none;padding:5px 10px;font-weight:500;color:var(--soft)}.effect-select{width:100%;padding:9px 10px;margin:2px 0 4px}.effect-desc{min-height:38px;color:var(--soft);font-size:12px;line-height:1.4;margin:3px 0 9px}.row{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13px}.row label{min-width:120px;color:var(--soft)}.row input[type=range]{flex:1;min-width:80px;accent-color:var(--pink)}.row output{width:44px;text-align:right;color:var(--soft)}input[type=color]{width:46px;height:30px;border:1px solid var(--line);border-radius:8px;background:none;padding:1px;cursor:pointer}input[type=text],input[type=number],select{background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}input[type=text]{flex:1}input[type=number]{width:76px}select{max-width:100%}button{font:600 13px 'Segoe UI';color:#fff;background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:7px 14px;cursor:pointer}button:hover{border-color:var(--pink)}button.play,.primary{background:linear-gradient(120deg,var(--pink),var(--violet));border:0}button.stop{background:#3a1626;border-color:#ff4f6e}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.toggle{display:flex;align-items:center;gap:6px;color:var(--soft);font-size:13px}.theme-box{max-width:720px;margin:10px auto 22px;text-align:center}.theme-switch{display:grid;grid-template-columns:repeat(3,1fr);padding:5px;border:1px solid #513667;border-radius:18px;background:#100a1cbf;box-shadow:0 12px 35px #0004}.theme-switch button{border:0;border-radius:13px;padding:13px 8px;color:var(--soft);background:transparent;font-size:15px}.theme-switch button.active{color:white;background:linear-gradient(120deg,var(--pink),var(--violet));box-shadow:0 6px 20px #ff4fa344}.editing{margin:12px 0 0;color:var(--soft)}.editing b{color:var(--pink)}.testbar{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0;padding:12px;border:1px solid var(--line);border-radius:14px;background:#1a1428b3}.savebar{position:fixed;z-index:20;left:50%;bottom:16px;translate:-50% 0;width:min(720px,calc(100% - 28px));display:none;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--pink);border-radius:16px;background:#1c122bf7;box-shadow:0 12px 38px #0007}.savebar.show{display:flex}.savebar strong{margin-right:auto}.toast{position:fixed;z-index:30;bottom:84px;left:50%;translate:-50% 0;background:var(--card2);border:1px solid var(--pink);padding:9px 18px;border-radius:99px;opacity:0;pointer-events:none;transition:.25s}.toast.on{opacity:1}@media(max-width:650px){.jp{display:none}.status span{font-size:0}.status .dot{margin:0}.grid{grid-template-columns:1fr}.row label{min-width:105px}.savebar{flex-wrap:wrap}.savebar strong{width:100%}}
-</style></head><body>
-<header><div class="head"><h1>Sakura Lumières</h1><span class="jp">桜の光</span><div class="status" id="status"></div></div><nav class="tabs"><button class="tab active" data-tab="ambiences">Ambiances</button><button class="tab" data-tab="animations">Animations du launcher</button><button class="tab" data-tab="gallery">Galerie</button><button class="tab" data-tab="components">Composants</button></nav></header>
-<main>
-<section class="panel active" id="ambiences"><div class="theme-box"><h2>L’ambiance affichée sur la tour</h2><p class="lead">Choisis le jour, la nuit, ou laisse Sakura décider selon l’heure.</p><div class="theme-switch" id="themeSwitch"><button data-theme="day">☀ Jour</button><button data-theme="night">☾ Nuit</button><button data-theme="auto">✦ Automatique</button></div><p class="editing">Tu règles actuellement l’ambiance <b id="editingTheme"></b>.</p></div><div class="grid" id="ambianceGrid"></div></section>
-<section class="panel" id="animations"><h2>Scènes du launcher <small>les animations du démarrage et du bouton « C’est parti »</small></h2><div class="grid" id="scenes"></div><div class="testbar"><button class="stop" onclick="api('/api/stoptest');toast('Test arrêté')">■ Arrêter le test</button><button onclick="api('/api/stop');toast('Retour à l’ambiance')">Revenir à l’ambiance</button></div><h2>Démarrage dans le noir <small>pour rester éteint jusqu’à la tempête</small></h2><p class="lead">C’est réglé dans le BIOS : <b>LEDs in System Power On State</b> sur <b>Off</b>. Rien à faire ici. Si un jour la tour s’allume avant la tempête, vérifie ce réglage.</p><h2>Effets intégrés à la carte mère <small>joués par la puce GIGABYTE</small></h2><p class="lead">Ils s’appliquent à toute la carte pendant 8 secondes.</p><div class="grid" id="hw"></div></section>
-<section class="panel" id="gallery"><h2>Galerie d’effets <small>essaie chaque animation pendant 12 secondes</small></h2><p class="lead">Ces aperçus sont temporaires : ils ne changent pas tes ambiances.</p><div class="grid" id="effects"></div><div class="testbar"><button class="stop" onclick="api('/api/stoptest');toast('Aperçu arrêté')">■ Arrêter l’aperçu</button><button onclick="api('/api/stop');toast('Retour à l’ambiance')">Revenir à l’ambiance</button></div></section>
-<section class="panel" id="components"><h2>Composants <small>ce qui s’allume dans ta tour</small></h2><p class="lead">« Identifier » fait clignoter une zone en blanc pendant 6 secondes. Donne-lui un nom simple, règle son nombre de LED et choisis si elle est utilisée.</p><div class="grid" id="zones"></div></section>
-</main><div class="savebar" id="savebar"><strong>Changements non enregistrés</strong><button onclick="cancelChanges()">Annuler</button><button class="primary" onclick="saveChanges()">Enregistrer</button></div><div class="toast" id="toast"></div>
-<script>
-let state,activeTheme='day',dirty=false,liveTimer=null;
-const $=s=>document.querySelector(s),api=path=>fetch(path),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),zname=z=>z.name||z.label;
-const TWO_COLORS=['wave','rain','police'],NO_COLORS=['rainbow','fire'],NO_SPEED=['static'];
-const SCENES={off:{title:'Avant la tempête (tout éteint)',desc:'Les lumières restent éteintes jusqu’à la tempête.'},storm:{title:"Tempête d’ouverture",desc:'Les zones choisies s’allument, la tempête se remplit LED par LED, puis l’ambiance apparaît.'},flash_day:{title:'« C’est parti » de jour : Hanami',desc:'Flash blanc, onde sakura et pluie de pétales.'},flash_night:{title:'« C’est parti » de nuit : Néon overload',desc:'Néon rose, comètes rose et cyan, puis coupure sèche.'}};
-function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)}
-function status(){ $('#status').innerHTML=`<span><i class="dot ${state.connected.corsair?'on':''}"></i>RAM</span><span><i class="dot ${state.connected.openrgb?'on':''}"></i>Carte mère (OpenRGB)</span>` }
-function setDirty(v=true){dirty=v;$('#savebar').classList.toggle('show',dirty)}
-function effect(id){return state.effects.find(e=>e.id===id)||{name:id,desc:''}}
-function value(i){return i.type==='range'||i.type==='number'?+i.value:i.type==='checkbox'?i.checked:i.value}
-function fields(el){return Object.fromEntries([...el.querySelectorAll('[data-k]')].map(i=>[i.dataset.k,value(i)]))}
-function param(k,type,label,min,max,step,val){return type==='color'?`<div class="row"><label>${label}</label><input type="color" data-k="${k}" value="${val}"></div>`:`<div class="row"><label>${label}</label><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${val}"><output>${val}</output></div>`}
-function ranges(root=document){root.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>r.nextElementSibling.textContent=r.value)}
-function themeSwitch(){const shown=state.auto?'auto':state.theme;document.querySelectorAll('#themeSwitch button').forEach(b=>b.classList.toggle('active',b.dataset.theme===shown));$('#editingTheme').textContent=activeTheme==='day'?'Jour':'Nuit'}
-async function chooseTheme(t){await api('/api/theme?theme='+t);if(t==='auto'){const fresh=await(await fetch('/api/state')).json();state.auto=true;state.theme=fresh.theme;activeTheme=fresh.theme}else{state.auto=false;state.theme=t;activeTheme=t}themeSwitch();renderAmbiences()}
-function ambientCard(z){const p=state.programs[activeTheme][z.key]||{effect:'static',a:'#fff',bright:1,speed:1},e=effect(p.effect),colors=!NO_COLORS.includes(p.effect),two=TWO_COLORS.includes(p.effect);return `<div class="card ambient-card" data-ambient="${activeTheme}|${esc(z.key)}"><div class="ambient-head"><div><h3>${esc(zname(z))}</h3><span class="desc">${esc(z.label)}</span></div><button class="copy" onclick="copyZone('${esc(z.key)}')">Copier vers ${activeTheme==='day'?'Nuit':'Jour'}</button></div><select class="effect-select" data-k="effect">${state.effects.map(x=>`<option value="${x.id}" ${x.id===p.effect?'selected':''}>${esc(x.name)}</option>`).join('')}</select><p class="effect-desc">${esc(e.desc)}</p>${colors?param('a','color','Couleur',0,0,0,p.a||'#ff46a5'):''}${two?param('b','color','Deuxième couleur',0,0,0,p.b||'#195aff'):''}${NO_SPEED.includes(p.effect)?'':param('speed','range','Vitesse',.2,3,.1,p.speed??1)}${param('bright','range','Luminosité',.1,1,.05,p.bright??1)}${p.effect==='neon'?param('gap_min','range','Grésille après',1,20,.5,p.gap_min??3)+param('gap_max','range','Au plus tard après',1,30,.5,p.gap_max??10):''}</div>`}
-function renderAmbiences(){$('#ambianceGrid').innerHTML=state.zones.filter(z=>z.enabled!==false).map(ambientCard).join('')||'<p class="lead">Aucune zone activée.</p>';ranges($('#ambianceGrid'));themeSwitch()}
-function copyZone(key){const other=activeTheme==='day'?'night':'day';state.programs[other][key]={...state.programs[activeTheme][key]};activeTheme=other;renderAmbiences();changed();toast(`Réglage copié vers ${other==='day'?'Jour':'Nuit'}`)}
-function zoneCard(z){const argb=z.key.startsWith('mb:D_LED');return `<div class="card" data-zone="${esc(z.key)}"><h3>${esc(zname(z))}</h3><p class="desc">${esc(z.label)} · ${z.count} LED</p><div class="row"><label>Nom</label><input type="text" data-k="name" value="${esc(z.name||'')}" placeholder="ex. Ventirad MSI"></div>${argb?`<div class="row"><label>Nombre de LED</label><input type="number" data-k="leds" min="1" max="300" value="${z.leds||z.count}"></div>`:''}<div class="row"><label>Ordre des couleurs</label><select data-k="order">${['RGB','RBG','GRB','GBR','BRG','BGR'].map(o=>`<option ${o===(z.order||'RGB')?'selected':''}>${o}</option>`).join('')}</select><button onclick="colorTest('${esc(z.key)}')">Tester</button></div><div class="actions"><label class="toggle"><input type="checkbox" data-k="enabled" ${z.enabled===false?'':'checked'}> Utilisée</label><button onclick="api('/api/identify?zone=${encodeURIComponent(z.key)}');toast('Regarde ta tour : cette zone clignote')">Identifier</button></div></div>`}
-function stormBody(){const sc=state.scenes.storm,role=k=>sc.first.includes(k)?'first':sc.fill.includes(k)?'fill':'none';return param('color','color','Couleur',0,0,0,sc.color)+state.zones.filter(z=>z.enabled!==false).map(z=>`<div class="row"><label>${esc(zname(z))}</label><select data-role="${esc(z.key)}">${[['first','En premier'],['fill','En remplissage'],['none','Éteint']].map(([v,n])=>`<option value="${v}" ${role(z.key)===v?'selected':''}>${n}</option>`).join('')}</select></div>`).join('')+param('fill_delay','range','Début remplissage',0,5,.1,sc.fill_delay)+param('fill_time','range','Durée remplissage',.5,6,.1,sc.fill_time)+param('hold','range','Extinction à',2,12,.1,sc.hold)+param('fade_out','range','Durée extinction',.3,4,.1,sc.fade_out)+param('fade_in','range','Retour ambiance',.3,4,.1,sc.fade_in)}
-function sceneBody(id){if(id==='storm')return stormBody();if(id==='flash_day')return param('pink','color','Rose',0,0,0,state.scenes.go_day.pink)+param('white','color','Blanc',0,0,0,state.scenes.go_day.white);if(id==='flash_night')return param('pink','color','Rose néon',0,0,0,state.scenes.go_night.pink)+param('cyan','color','Cyan',0,0,0,state.scenes.go_night.cyan);return''}
-function renderOthers(){$('#zones').innerHTML=state.zones.map(zoneCard).join('')||'<p class="lead">Connexion en cours…</p>';$('#scenes').innerHTML=Object.entries(SCENES).map(([id,s])=>`<div class="card" data-scene="${id}"><h3>${s.title}</h3><p class="desc">${s.desc}</p>${sceneBody(id)}<button class="play" onclick="playScene('${id}')">▶ Voir</button></div>`).join('');$('#effects').innerHTML=state.effects.map(e=>`<div class="card" data-effect="${e.id}"><h3>${esc(e.name)}</h3><p class="desc">${esc(e.desc)}</p>${param('a','color','Couleur 1',0,0,0,'#ff46a5')}${param('b','color','Couleur 2',0,0,0,'#195aff')}${param('speed','range','Vitesse',.2,3,.1,1)}<button class="play" onclick="playEffect('${e.id}')">▶ Voir 12 s</button></div>`).join('');$('#hw').innerHTML=state.hw.flatMap(d=>d.modes.map(m=>`<div class="card" data-hw="${esc(m)}"><h3>${esc(m)}</h3><p class="desc">${esc(d.device)}</p>${param('color','color','Couleur',0,0,0,'#ff46a5')}<button class="play" onclick="playHw('${esc(m)}',this)">▶ Voir 8 s</button></div>`)).join('')||'<p class="lead">Carte mère non connectée.</p>';ranges()}
-function collect(){const zones={};state.zones.forEach(z=>{const el=document.querySelector(`[data-zone="${CSS.escape(z.key)}"]`),f=el?fields(el):{};zones[z.key]={...z,...f};['key','label','count'].forEach(k=>delete zones[z.key][k]);if(!zones[z.key].name)delete zones[z.key].name});const scenes={...state.scenes},stormEl=document.querySelector('[data-scene=storm]');if(stormEl){scenes.storm={...state.scenes.storm,...fields(stormEl),first:[],fill:[]};stormEl.querySelectorAll('[data-role]').forEach(s=>{if(s.value!=='none')scenes.storm[s.value].push(s.dataset.role)})}const d=document.querySelector('[data-scene=flash_day]'),n=document.querySelector('[data-scene=flash_night]');scenes.go_day={...state.scenes.go_day,...(d?fields(d):{})};scenes.go_night={...state.scenes.go_night,...(n?fields(n):{})};return{zones,programs:state.programs,scenes}}
-function changed(){setDirty();clearTimeout(liveTimer);liveTimer=setTimeout(sendLive,150)}
-async function sendLive(){clearTimeout(liveTimer);liveTimer=null;if(state.auto||state.theme!==activeTheme){await api('/api/theme?theme='+activeTheme);state.auto=false;state.theme=activeTheme;themeSwitch()}await fetch('/api/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collect())})}
-async function saveChanges(){if(liveTimer)await sendLive();await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collect())});setDirty(false);toast('Réglages enregistrés');await load(false)}
-async function cancelChanges(){clearTimeout(liveTimer);liveTimer=null;await api('/api/revert');setDirty(false);await load(false);toast('Changements annulés')}
-async function colorTest(k){if(dirty)await sendLive();api('/api/colortest?zone='+encodeURIComponent(k));['ROUGE','VERT','BLEU'].forEach((c,i)=>setTimeout(()=>toast(`Tu devrais voir du ${c}`),i*2000))}
-async function playScene(id){if(dirty)await sendLive();api('/api/scene?scene='+id);toast(SCENES[id].title+' : regarde ta tour')}
-function playEffect(id){const p=fields(document.querySelector(`[data-effect="${CSS.escape(id)}"]`));api(`/api/effect?id=${id}&params=${encodeURIComponent(JSON.stringify(p))}`);toast('Aperçu pendant 12 secondes')}
-function playHw(mode,btn){const c=fields(btn.closest('[data-hw]')).color;api(`/api/hw?mode=${encodeURIComponent(mode)}&color=${encodeURIComponent(c)}`);toast('Effet de la carte mère pendant 8 secondes')}
-document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab))});$('#themeSwitch').addEventListener('click',e=>{const b=e.target.closest('[data-theme]');if(b)chooseTheme(b.dataset.theme)});$('#ambianceGrid').addEventListener('input',e=>{const el=e.target.closest('[data-k]'),card=e.target.closest('[data-ambient]');if(!el||!card)return;const[theme,key]=card.dataset.ambient.split('|'),p=state.programs[theme][key]||(state.programs[theme][key]={});p[el.dataset.k]=value(el);if(el.type==='range')el.nextElementSibling.textContent=el.value;changed()});$('#ambianceGrid').addEventListener('change',e=>{if(e.target.dataset.k==='effect')renderAmbiences()});['#zones','#scenes'].forEach(id=>{$(id).addEventListener('input',changed);$(id).addEventListener('change',changed)});
-async function load(first=true){state=await(await fetch('/api/state')).json();activeTheme=state.theme;status();themeSwitch();renderAmbiences();renderOthers();if(!first)setDirty(false)}load();setInterval(async()=>{const fresh=await(await fetch('/api/state')).json();if(dirty){state.connected=fresh.connected;status();return}const rebuild=fresh.zones.length!==state.zones.length||fresh.hw.length!==state.hw.length;state.connected=fresh.connected;state.theme=fresh.theme;state.auto=fresh.auto;status();themeSwitch();if(rebuild){state=fresh;activeTheme=state.theme;renderAmbiences();renderOthers()}},3000);
-</script></body></html>
+<!doctype html>
+<html lang="fr" data-theme="day">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sakura Lumières</title>
+  <link rel="stylesheet" href="/design/tokens.css">
+  <link rel="stylesheet" href="/design/ui/sakura.css">
+  <style>
+    .lights-main { padding-top: 22px; }
+    .lights-shell { max-width: 1180px; }
+    .lights-topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+    .lights-status { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; color: var(--sk-muted); font-size: 12px; }
+    .lights-status span { display: inline-flex; align-items: center; gap: 6px; }
+    .lights-panel-head { margin-bottom: 18px; }
+    .lights-panel-head .sk-sub { margin-top: 4px; }
+    .lights-theme-box { display: grid; justify-items: center; gap: 10px; margin: 4px auto 24px; text-align: center; }
+    .lights-theme-box .sk-section-title { margin: 0; }
+    .lights-editing { margin: 0; color: var(--sk-muted); font-size: 13px; }
+    .lights-editing strong { color: var(--sk-accent); }
+    .lights-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    .lights-zone { min-width: 0; padding: 18px; }
+    .lights-zone-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .lights-zone-title { display: flex; align-items: center; gap: 9px; margin: 0; font: 900 17px var(--font-title); }
+    .lights-desc { margin: 3px 0 0; color: var(--sk-muted); font-size: 12px; line-height: 1.45; }
+    .lights-control { display: grid; grid-template-columns: minmax(105px, .42fr) minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+    .lights-control > label { color: var(--sk-label); font-size: 12px; font-weight: 800; }
+    .lights-control output { min-width: 42px; color: var(--sk-muted); text-align: right; font-size: 12px; }
+    .lights-color-control { display: flex; align-items: center; gap: 10px; }
+    .lights-color-input { width: 40px; height: 30px; padding: 2px; border: 1px solid var(--sk-control-border); border-radius: 10px; background: var(--sk-surface-strong); cursor: pointer; }
+    .lights-effect-desc { min-height: 34px; margin: 0; color: var(--sk-muted); font-size: 12px; line-height: 1.4; }
+    .lights-card { display: grid; gap: 12px; }
+    .lights-card .sk-section-title { margin: 0; }
+    .lights-actions { margin-top: 2px; }
+    .lights-testbar { margin: 18px 0 26px; }
+    .lights-toggle { display: inline-flex; align-items: center; gap: 7px; color: var(--sk-muted); font-size: 13px; }
+    .lights-number { max-width: 92px; }
+    .lights-empty { color: var(--sk-muted); }
+    .lights-pause { margin-top: 18px; }
+    @media (max-width: 760px) {
+      .lights-topline { align-items: flex-start; flex-direction: column; }
+      .lights-status { justify-content: flex-start; }
+      .lights-grid { grid-template-columns: 1fr; }
+      .lights-control { grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr) auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sk-window" id="lights-window" data-torii="faint">
+    <main class="sk-main lights-main">
+      <section class="sk-section lights-shell">
+        <div class="lights-topline">
+          <div>
+            <div class="sk-tag">桜の光 · TA TOUR EN COULEURS</div>
+            <h1 class="sk-title">Règle tes lumières</h1>
+            <p class="sk-sub">Choisis une ambiance, essaie-la en direct, puis enregistre quand elle te plaît.</p>
+          </div>
+          <div class="lights-status" id="status" aria-live="polite"></div>
+        </div>
+
+        <div class="sk-tabs" role="tablist" aria-label="Réglages des lumières">
+          <button class="sk-tab is-active" type="button" role="tab" data-tab="ambiences">Ambiances</button>
+          <button class="sk-tab" type="button" role="tab" data-tab="animations">Animations du launcher</button>
+          <button class="sk-tab" type="button" role="tab" data-tab="gallery">Galerie</button>
+          <button class="sk-tab" type="button" role="tab" data-tab="components">Composants</button>
+        </div>
+
+        <section data-panel="ambiences">
+          <div class="lights-theme-box">
+            <h2 class="sk-section-title">L’ambiance affichée sur la tour</h2>
+            <p class="sk-sub">Choisis le jour, la nuit, ou laisse Sakura décider selon l’heure.</p>
+            <div class="sk-seg" id="themeSwitch" aria-label="Ambiance de la tour">
+              <button type="button" data-theme="day">☀ Jour</button>
+              <button type="button" data-theme="night">☾ Nuit</button>
+              <button type="button" data-theme="auto">✦ Auto</button>
+            </div>
+            <p class="lights-editing">Tu règles actuellement l’ambiance <strong id="editingTheme"></strong>.</p>
+          </div>
+          <div class="sk-grid lights-grid" id="ambianceGrid"></div>
+        </section>
+
+        <section data-panel="animations" hidden>
+          <header class="lights-panel-head"><h2 class="sk-section-title">Scènes du launcher</h2><p class="sk-sub">Retrouve ici le démarrage et l’animation du bouton « C’est parti ».</p></header>
+          <div class="sk-grid lights-grid" id="scenes"></div>
+          <div class="sk-actions lights-testbar">
+            <button class="sk-btn sk-btn--danger" type="button" onclick="stopTest('Test arrêté')">Arrêter le test</button>
+            <button class="sk-btn sk-btn--secondary" type="button" onclick="returnToAmbience()">Revenir à l’ambiance</button>
+          </div>
+          <aside class="sk-tip"><div class="sk-tip-body"><div class="sk-tip-title">Démarrage dans le noir</div><p>Dans le BIOS, garde « LEDs in System Power On State » sur « Off ». La tour restera éteinte jusqu’à la tempête.</p></div></aside>
+          <header class="lights-panel-head" style="margin-top:24px"><h2 class="sk-section-title">Effets de la carte mère</h2><p class="sk-sub">La puce GIGABYTE joue ces effets sur toute la carte pendant 8 secondes.</p></header>
+          <div class="sk-grid lights-grid" id="hw"></div>
+        </section>
+
+        <section data-panel="gallery" hidden>
+          <header class="lights-panel-head"><h2 class="sk-section-title">Galerie d’effets</h2><p class="sk-sub">Essaie chaque animation pendant 12 secondes. Ces aperçus ne changent pas tes ambiances enregistrées.</p></header>
+          <div class="sk-grid lights-grid" id="effects"></div>
+          <div class="sk-actions lights-testbar">
+            <button class="sk-btn sk-btn--danger" type="button" onclick="stopTest('Aperçu arrêté')">Arrêter l’aperçu</button>
+            <button class="sk-btn sk-btn--secondary" type="button" onclick="returnToAmbience()">Revenir à l’ambiance</button>
+          </div>
+        </section>
+
+        <section data-panel="components" hidden>
+          <header class="lights-panel-head"><h2 class="sk-section-title">Composants</h2><p class="sk-sub">« Identifier » fait clignoter une zone en blanc pendant 6 secondes. Donne-lui un nom simple, règle son nombre de LED et choisis si elle est utilisée.</p></header>
+          <div class="sk-grid lights-grid" id="zones"></div>
+          <aside class="sk-tip lights-pause"><div class="sk-tip-body"><div class="sk-tip-title">Tu veux ouvrir GIGABYTE Control Center ?</div><p>Mets Sakura en pause 10 minutes pour éviter que les deux programmes se gênent.</p></div><button class="sk-btn sk-btn--secondary sk-btn--small" type="button" onclick="pauseGigabyte()">Faire une pause de 10 min</button></aside>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/design/ui/sakura.js"></script>
+  <script>
+    let state, activeTheme = 'day', dirty = false, liveTimer = null, savebar;
+    const $ = selector => document.querySelector(selector);
+    const api = path => fetch(path);
+    const esc = value => Sakura.esc(value);
+    const jsArg = value => esc(JSON.stringify(String(value)));
+    const zname = zone => zone.name || zone.label;
+    const TWO_COLORS = ['wave', 'rain', 'police'];
+    const NO_COLORS = ['rainbow', 'fire'];
+    const NO_SPEED = ['static'];
+    const SCENES = {
+      off: {title: 'Avant la tempête (tout éteint)', desc: 'Les lumières restent éteintes jusqu’à la tempête.'},
+      storm: {title: 'Tempête d’ouverture', desc: 'Les zones choisies s’allument, la tempête se remplit LED par LED, puis l’ambiance apparaît.'},
+      flash_day: {title: '« C’est parti » de jour : Hanami', desc: 'Flash blanc, onde sakura et pluie de pétales.'},
+      flash_night: {title: '« C’est parti » de nuit : Néon overload', desc: 'Néon rose, comètes rose et cyan, puis coupure sèche.'}
+    };
+
+    function notify(text, kind = 'ok') { Sakura.toast(text, {kind}); }
+    function safeColor(value) { return /^#[0-9a-f]{6}$/i.test(value || '') ? value : 'var(--sk-accent)'; }
+    function status() {
+      $('#status').innerHTML = [['RAM', state.connected.corsair], ['Carte mère (OpenRGB)', state.connected.openrgb]].map(([label, connected]) => `<span><i class="sk-led" style="--sk-c:var(${connected ? '--sk-ok' : '--sk-warn'})"></i>${label} · ${connected ? 'connecté' : 'en attente'}</span>`).join('');
+    }
+    function setDirty(value = true) { dirty = value; if (savebar) (dirty ? savebar.show() : savebar.hide()); }
+    function effect(id) { return state.effects.find(item => item.id === id) || {name: id, desc: ''}; }
+    function value(input) { return input.type === 'range' || input.type === 'number' ? +input.value : input.type === 'checkbox' ? input.checked : input.value; }
+    function fields(element) { return Object.fromEntries([...element.querySelectorAll('[data-k]')].map(input => [input.dataset.k, value(input)])); }
+    function param(key, type, label, min, max, step, current) {
+      if (type === 'color') {
+        const color = safeColor(current);
+        return `<div class="lights-control"><label>${label}</label><div class="lights-color-control"><span class="sk-led" style="--sk-c:${color}" aria-hidden="true"></span><input class="sk-swatch lights-color-input" type="color" data-k="${key}" value="${color}" aria-label="${label}"></div><span></span></div>`;
+      }
+      return `<div class="lights-control"><label>${label}</label><input class="sk-range" type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${current}"><output>${current}</output></div>`;
+    }
+    function syncColor(input) { const led = input.parentElement && input.parentElement.querySelector('.sk-led'); if (led) led.style.setProperty('--sk-c', input.value); }
+    function ranges(root = document) { root.querySelectorAll('.sk-range').forEach(range => { range.oninput = () => range.nextElementSibling.textContent = range.value; }); }
+    function themeSwitch() {
+      const shown = state.auto ? 'auto' : state.theme;
+      document.querySelectorAll('#themeSwitch button').forEach(button => button.classList.toggle('is-active', button.dataset.theme === shown));
+      $('#editingTheme').textContent = activeTheme === 'day' ? 'Jour' : 'Nuit';
+    }
+    async function chooseTheme(theme) {
+      await api('/api/theme?theme=' + theme);
+      if (theme === 'auto') {
+        const fresh = await (await fetch('/api/state')).json();
+        state.auto = true; state.theme = fresh.theme; activeTheme = fresh.theme;
+      } else {
+        state.auto = false; state.theme = theme; activeTheme = theme;
+      }
+      themeSwitch(); renderAmbiences();
+    }
+    function ambientCard(zone) {
+      const program = state.programs[activeTheme][zone.key] || {effect: 'static', a: '#ffffff', bright: 1, speed: 1};
+      const chosenEffect = effect(program.effect), colors = !NO_COLORS.includes(program.effect), two = TWO_COLORS.includes(program.effect);
+      return `<article class="lights-zone" data-sk-brush="var(--sk-accent-soft)" data-ambient="${activeTheme}|${esc(zone.key)}"><div class="lights-zone-head"><div><h3 class="lights-zone-title">${esc(zname(zone))}</h3><p class="lights-desc">${esc(zone.label)}</p></div><button class="sk-btn sk-btn--secondary sk-btn--small" type="button" onclick="copyZone(${jsArg(zone.key)})">Copier vers ${activeTheme === 'day' ? 'Nuit' : 'Jour'}</button></div><div class="sk-encart sk-stack"><select class="sk-select" data-k="effect" aria-label="Effet de ${esc(zname(zone))}">${state.effects.map(item => `<option value="${item.id}" ${item.id === program.effect ? 'selected' : ''}>${esc(item.name)}</option>`).join('')}</select><p class="lights-effect-desc">${esc(chosenEffect.desc)}</p>${colors ? param('a', 'color', 'Couleur', 0, 0, 0, program.a || '#ff46a5') : ''}${two ? param('b', 'color', 'Deuxième couleur', 0, 0, 0, program.b || '#195aff') : ''}${NO_SPEED.includes(program.effect) ? '' : param('speed', 'range', 'Vitesse', .2, 3, .1, program.speed ?? 1)}${param('bright', 'range', 'Luminosité', .1, 1, .05, program.bright ?? 1)}${program.effect === 'neon' ? param('gap_min', 'range', 'Grésille après', 1, 20, .5, program.gap_min ?? 3) + param('gap_max', 'range', 'Au plus tard après', 1, 30, .5, program.gap_max ?? 10) : ''}</div></article>`;
+    }
+    function paintAmbientCards() { document.querySelectorAll('[data-ambient]').forEach((card, index) => { Sakura.brush(card, {color: 'var(--sk-accent-soft)', variant: index}).then(() => card.style.setProperty('--sk-n', 'var(--sk-accent)')); }); }
+    function renderAmbiences() {
+      $('#ambianceGrid').innerHTML = state.zones.filter(zone => zone.enabled !== false).map(ambientCard).join('') || '<p class="lights-empty">Aucune zone activée.</p>';
+      Sakura.init($('#ambianceGrid')); paintAmbientCards(); ranges($('#ambianceGrid')); themeSwitch();
+    }
+    function copyZone(key) {
+      const other = activeTheme === 'day' ? 'night' : 'day';
+      state.programs[other][key] = {...state.programs[activeTheme][key]}; activeTheme = other;
+      renderAmbiences(); changed(); notify(`Réglage copié vers ${other === 'day' ? 'Jour' : 'Nuit'}`);
+    }
+    function zoneCard(zone) {
+      const argb = zone.key.startsWith('mb:D_LED');
+      return `<article class="sk-card lights-card" data-zone="${esc(zone.key)}"><div><h3 class="sk-section-title">${esc(zname(zone))}</h3><p class="lights-desc">${esc(zone.label)} · ${zone.count} LED</p></div><div class="lights-control"><label>Nom</label><input class="sk-input" type="text" data-k="name" value="${esc(zone.name || '')}" placeholder="ex. Ventirad MSI"><span></span></div>${argb ? `<div class="lights-control"><label>Nombre de LED</label><input class="sk-input lights-number" type="number" data-k="leds" min="1" max="300" value="${zone.leds || zone.count}"><span></span></div>` : ''}<div class="lights-control"><label>Ordre des couleurs</label><select class="sk-select" data-k="order">${['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR'].map(order => `<option ${order === (zone.order || 'RGB') ? 'selected' : ''}>${order}</option>`).join('')}</select><button class="sk-btn sk-btn--secondary sk-btn--small" type="button" onclick="colorTest(${jsArg(zone.key)})">Tester</button></div><div class="sk-actions lights-actions"><label class="lights-toggle"><input type="checkbox" data-k="enabled" ${zone.enabled === false ? '' : 'checked'}> Utilisée</label><button class="sk-btn sk-btn--secondary" type="button" onclick="identifyZone(${jsArg(zone.key)})">Identifier</button></div></article>`;
+    }
+    function stormBody() {
+      const scene = state.scenes.storm, role = key => scene.first.includes(key) ? 'first' : scene.fill.includes(key) ? 'fill' : 'none';
+      return param('color', 'color', 'Couleur', 0, 0, 0, scene.color) + state.zones.filter(zone => zone.enabled !== false).map(zone => `<div class="lights-control"><label>${esc(zname(zone))}</label><select class="sk-select" data-role="${esc(zone.key)}">${[['first', 'En premier'], ['fill', 'En remplissage'], ['none', 'Éteint']].map(([id, name]) => `<option value="${id}" ${role(zone.key) === id ? 'selected' : ''}>${name}</option>`).join('')}</select><span></span></div>`).join('') + param('fill_delay', 'range', 'Début remplissage', 0, 5, .1, scene.fill_delay) + param('fill_time', 'range', 'Durée remplissage', .5, 6, .1, scene.fill_time) + param('hold', 'range', 'Extinction à', 2, 12, .1, scene.hold) + param('fade_out', 'range', 'Durée extinction', .3, 4, .1, scene.fade_out) + param('fade_in', 'range', 'Retour ambiance', .3, 4, .1, scene.fade_in);
+    }
+    function sceneBody(id) {
+      if (id === 'storm') return stormBody();
+      if (id === 'flash_day') return param('pink', 'color', 'Rose', 0, 0, 0, state.scenes.go_day.pink) + param('white', 'color', 'Blanc', 0, 0, 0, state.scenes.go_day.white);
+      if (id === 'flash_night') return param('pink', 'color', 'Rose néon', 0, 0, 0, state.scenes.go_night.pink) + param('cyan', 'color', 'Cyan', 0, 0, 0, state.scenes.go_night.cyan);
+      return '';
+    }
+    function renderOthers() {
+      $('#zones').innerHTML = state.zones.map(zoneCard).join('') || '<p class="lights-empty">Connexion en cours…</p>';
+      $('#scenes').innerHTML = Object.entries(SCENES).map(([id, scene]) => { const body = sceneBody(id); return `<article class="sk-card lights-card" data-scene="${id}"><div><h3 class="sk-section-title">${scene.title}</h3><p class="lights-desc">${scene.desc}</p></div>${body ? `<div class="sk-encart sk-stack">${body}</div>` : ''}<div class="sk-actions"><button class="sk-btn sk-btn--primary" type="button" onclick="playScene('${id}')">▶ Voir</button></div></article>`; }).join('');
+      $('#effects').innerHTML = state.effects.map(item => `<article class="sk-card lights-card" data-effect="${item.id}"><div><h3 class="sk-section-title">${esc(item.name)}</h3><p class="lights-desc">${esc(item.desc)}</p></div><div class="sk-encart sk-stack">${param('a', 'color', 'Couleur 1', 0, 0, 0, '#ff46a5')}${param('b', 'color', 'Couleur 2', 0, 0, 0, '#195aff')}${param('speed', 'range', 'Vitesse', .2, 3, .1, 1)}</div><div class="sk-actions"><button class="sk-btn sk-btn--primary" type="button" onclick="playEffect('${item.id}')">▶ Voir 12 s</button></div></article>`).join('');
+      $('#hw').innerHTML = state.hw.flatMap(device => device.modes.map(mode => `<article class="sk-card lights-card" data-hw="${esc(mode)}"><div><h3 class="sk-section-title">${esc(mode)}</h3><p class="lights-desc">${esc(device.device)}</p></div><div class="sk-encart">${param('color', 'color', 'Couleur', 0, 0, 0, '#ff46a5')}</div><div class="sk-actions"><button class="sk-btn sk-btn--primary" type="button" onclick="playHw(${jsArg(mode)}, this)">▶ Voir 8 s</button></div></article>`)).join('') || '<p class="lights-empty">Carte mère non connectée.</p>';
+      Sakura.init($('#scenes')); Sakura.init($('#effects')); Sakura.init($('#hw')); ranges();
+    }
+    function collect() {
+      const zones = {};
+      state.zones.forEach(zone => {
+        const element = document.querySelector(`[data-zone="${CSS.escape(zone.key)}"]`), form = element ? fields(element) : {};
+        zones[zone.key] = {...zone, ...form}; ['key', 'label', 'count'].forEach(key => delete zones[zone.key][key]);
+        if (!zones[zone.key].name) delete zones[zone.key].name;
+      });
+      const scenes = {...state.scenes}, stormElement = document.querySelector('[data-scene=storm]');
+      if (stormElement) {
+        scenes.storm = {...state.scenes.storm, ...fields(stormElement), first: [], fill: []};
+        stormElement.querySelectorAll('[data-role]').forEach(select => { if (select.value !== 'none') scenes.storm[select.value].push(select.dataset.role); });
+      }
+      const day = document.querySelector('[data-scene=flash_day]'), night = document.querySelector('[data-scene=flash_night]');
+      scenes.go_day = {...state.scenes.go_day, ...(day ? fields(day) : {})}; scenes.go_night = {...state.scenes.go_night, ...(night ? fields(night) : {})};
+      return {zones, programs: state.programs, scenes};
+    }
+    function changed(event) {
+      if (event && event.target.matches('input[type=color]')) syncColor(event.target);
+      setDirty(); clearTimeout(liveTimer); liveTimer = setTimeout(sendLive, 150);
+    }
+    async function sendLive() {
+      clearTimeout(liveTimer); liveTimer = null;
+      if (state.auto || state.theme !== activeTheme) { await api('/api/theme?theme=' + activeTheme); state.auto = false; state.theme = activeTheme; themeSwitch(); }
+      await fetch('/api/live', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(collect())});
+    }
+    async function saveChanges() {
+      if (liveTimer) await sendLive();
+      await fetch('/api/save', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(collect())});
+      setDirty(false); notify('Tes réglages sont enregistrés'); await load(false);
+    }
+    async function cancelChanges() {
+      clearTimeout(liveTimer); liveTimer = null; await api('/api/revert'); setDirty(false); await load(false); notify('Modifications annulées', 'warn');
+    }
+    async function colorTest(key) {
+      if (dirty) await sendLive();
+      api('/api/colortest?zone=' + encodeURIComponent(key));
+      ['ROUGE', 'VERT', 'BLEU'].forEach((color, index) => setTimeout(() => notify(`Tu devrais voir du ${color}`), index * 2000));
+    }
+    function identifyZone(key) { api('/api/identify?zone=' + encodeURIComponent(key)); notify('Regarde ta tour : cette zone clignote'); }
+    async function playScene(id) { if (dirty) await sendLive(); api('/api/scene?scene=' + id); notify(SCENES[id].title + ' : regarde ta tour'); }
+    function playEffect(id) { const params = fields(document.querySelector(`[data-effect="${CSS.escape(id)}"]`)); api(`/api/effect?id=${id}&params=${encodeURIComponent(JSON.stringify(params))}`); notify('Aperçu pendant 12 secondes'); }
+    function playHw(mode, button) { const color = fields(button.closest('[data-hw]')).color; api(`/api/hw?mode=${encodeURIComponent(mode)}&color=${encodeURIComponent(color)}`); notify('Effet de la carte mère pendant 8 secondes'); }
+    function stopTest(message) { api('/api/stoptest'); notify(message, 'warn'); }
+    function returnToAmbience() { api('/api/stop'); notify('Retour à ton ambiance'); }
+    function pauseGigabyte() { api('/api/pause_conflicts?minutes=10'); notify('Sakura laisse GIGABYTE tranquille pendant 10 minutes'); }
+
+    $('#themeSwitch').addEventListener('click', event => { const button = event.target.closest('[data-theme]'); if (button) chooseTheme(button.dataset.theme); });
+    $('#ambianceGrid').addEventListener('input', event => {
+      const input = event.target.closest('[data-k]'), card = event.target.closest('[data-ambient]');
+      if (!input || !card) return;
+      const [theme, key] = card.dataset.ambient.split('|'), program = state.programs[theme][key] || (state.programs[theme][key] = {});
+      program[input.dataset.k] = value(input);
+      if (input.type === 'range') input.nextElementSibling.textContent = input.value;
+      if (input.type === 'color') syncColor(input);
+      changed();
+    });
+    $('#ambianceGrid').addEventListener('change', event => { if (event.target.dataset.k === 'effect') renderAmbiences(); });
+    ['#zones', '#scenes'].forEach(id => { $(id).addEventListener('input', changed); $(id).addEventListener('change', changed); });
+    ['#effects', '#hw'].forEach(id => { $(id).addEventListener('input', event => { if (event.target.type === 'color') syncColor(event.target); }); });
+
+    async function load(first = true) {
+      state = await (await fetch('/api/state')).json(); activeTheme = state.theme;
+      status(); themeSwitch(); renderAmbiences(); renderOthers(); if (!first) setDirty(false);
+    }
+
+    const windowElement = $('#lights-window');
+    windowElement.insertBefore(Sakura.titlebar({title: 'Sakura Lumières'}), windowElement.firstChild);
+    Sakura.tabs(document.querySelector('.sk-tabs'));
+    savebar = Sakura.savebar({onSave: saveChanges, onCancel: cancelChanges, message: 'Des changements attendent'});
+    document.body.appendChild(savebar.element);   // hors de .sk-window, sinon le kit la rend « relative » et elle sort de l'écran
+    Sakura.onThemeChange(paintAmbientCards);
+    Sakura.init();
+    load().catch(() => notify('Impossible de joindre les lumières pour le moment', 'warn'));
+    setInterval(async () => {
+      let fresh;
+      try { fresh = await (await fetch('/api/state')).json(); } catch (e) { return; }   // lumières pas encore prêtes
+      if (!state) { state = fresh; activeTheme = state.theme; status(); themeSwitch(); renderAmbiences(); renderOthers(); return; }
+      if (dirty) { state.connected = fresh.connected; status(); return; }
+      const rebuild = fresh.zones.length !== state.zones.length || fresh.hw.length !== state.hw.length;
+      state.connected = fresh.connected; state.theme = fresh.theme; state.auto = fresh.auto; status(); themeSwitch();
+      if (rebuild) { state = fresh; activeTheme = state.theme; renderAmbiences(); renderOthers(); }
+    }, 3000);
+  </script>
+</body>
+</html>
