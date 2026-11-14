@@ -1,8 +1,14 @@
 """Tests des outils sans effet sur le vrai PC."""
 
+import ast
+import json
 import os
+from pathlib import Path
+import subprocess
+import sys
 import time
 
+import sakura_ai.tools as tools_module
 from sakura_ai.tools import ToolRegistry
 
 
@@ -208,3 +214,180 @@ def test_un_seul_mot_commun_ne_suffit_pas(tmp_path):
     assert registry.run("open_app", {"name": "sakura optimiseur"})["name"] == "Sakura Optimizer"
     assert registry.run("open_app", {"name": "sakura robot"})["ok"] is False
     assert launched == [{"file": str(tmp_path / "Sakura Optimizer.lnk")}]
+
+
+def diagnostic_result(payload, returncode=0, stderr=""):
+    return subprocess.CompletedProcess([], returncode, json.dumps(payload), stderr)
+
+
+def test_diagnose_schema_est_sur_et_decrit_les_minutes():
+    registry = ToolRegistry()
+    tool = registry.get("diagnose")
+
+    assert tool is not None
+    assert tool.risky is False
+    assert tool.parameters["properties"]["minutes"] == {
+        "type": "integer",
+        "enum": [2, 5, 15],
+        "default": 5,
+    }
+    assert registry.describe("diagnose", {"minutes": 5}) == "🩺 Diagnostic des 5 dernières minutes"
+
+
+def test_diagnose_ramene_les_minutes_aux_valeurs_permises():
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(command)
+        return diagnostic_result({})
+
+    registry = ToolRegistry(diagnose_runner=runner)
+    for value in (0, 4, 12, 99, "invalide"):
+        registry.run("diagnose", {"minutes": value})
+
+    assert [command[-3] for command in commands] == ["--minutes"] * 5
+    assert [command[-2] for command in commands] == ["2", "5", "15", "15", "5"]
+
+
+def test_diagnose_construit_la_commande_et_compacte_le_json():
+    captured = {}
+    payload = {
+        "minutes": 5,
+        "app": "Mon jeu",
+        "bottleneck": "gpu",
+        "verdict": {"mood": "warn", "title": "Le GPU est chargé", "text": "Le jeu demande beaucoup."},
+        "enough_data": True,
+        "findings": [
+            {
+                "id": f"finding-{index}",
+                "severity": "attention",
+                "title": f"Constat {index}",
+                "explanation": f"Explication {index}",
+                "evidence": [
+                    {"label": "Charge", "value": f"{index} %"},
+                    {"label": "Ignorée", "value": "trop longue"},
+                ],
+                "advice": ["Conseil 1", "Conseil 2", "Conseil 3", "Conseil ignoré"],
+                "extra": "ignoré",
+            }
+            for index in range(5)
+        ],
+        "extra": "ignoré",
+    }
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return diagnostic_result(payload)
+
+    result = ToolRegistry(diagnose_runner=runner).run("diagnose", {"minutes": 5})
+
+    optimizer = tools_module.REPO / "apps" / "optimizer" / "optimizer.py"
+    assert captured["command"] == [sys.executable, str(optimizer), "diagnose", "--minutes", "5", "--json"]
+    assert captured["kwargs"]["cwd"] == optimizer.parent
+    assert captured["kwargs"]["capture_output"] is True
+    assert captured["kwargs"]["text"] is True
+    assert captured["kwargs"]["encoding"] == "utf-8"
+    assert captured["kwargs"]["env"]["PYTHONIOENCODING"] == "utf-8"
+    expected_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+    assert captured["kwargs"]["creationflags"] == expected_flags
+    assert captured["kwargs"]["timeout"] == 90
+    assert result == {
+        "ok": True,
+        "minutes": 5,
+        "verdict_title": "Le GPU est chargé",
+        "verdict_text": "Le jeu demande beaucoup.",
+        "mood": "warn",
+        "bottleneck": "gpu",
+        "app": "Mon jeu",
+        "enough_data": True,
+        "findings": [
+            {
+                "title": f"Constat {index}",
+                "explanation": f"Explication {index}",
+                "advice": ["Conseil 1", "Conseil 2", "Conseil 3"],
+                "evidence": f"Charge : {index} %",
+            }
+            for index in range(4)
+        ],
+    }
+
+
+def test_diagnose_accepte_un_json_partiel():
+    result = ToolRegistry(diagnose_runner=lambda *_args, **_kwargs: diagnostic_result({"verdict": None})).run(
+        "diagnose", {}
+    )
+
+    assert result["ok"] is True
+    assert result["minutes"] == 5
+    assert result["verdict_title"] == ""
+    assert result["findings"] == []
+
+
+def test_diagnose_gere_un_code_de_sortie_non_nul():
+    result = ToolRegistry(
+        diagnose_runner=lambda *_args, **_kwargs: diagnostic_result({}, returncode=2, stderr="détail technique")
+    ).run("diagnose", {})
+
+    assert result == {"ok": False, "message": "Sakura Optimizer n'a pas pu faire le diagnostic."}
+    assert "détail technique" not in result["message"]
+
+
+def test_diagnose_journalise_un_stderr_tronque():
+    calls = []
+
+    class Logger:
+        def info(self, *args):
+            calls.append(args)
+
+        def error(self, *args):
+            calls.append(args)
+
+    ToolRegistry(
+        diagnose_runner=lambda *_args, **_kwargs: diagnostic_result({}, returncode=1, stderr="x" * 1500),
+        logger=Logger(),
+    ).run("diagnose", {})
+
+    diagnostic_call = next(call for call in calls if call[0].startswith("Diagnostic Optimizer"))
+    assert diagnostic_call[-1] == "x" * 1000
+
+
+def test_diagnose_gere_un_json_illisible():
+    completed = subprocess.CompletedProcess([], 0, "pas du json", "trace technique")
+    result = ToolRegistry(diagnose_runner=lambda *_args, **_kwargs: completed).run("diagnose", {})
+
+    assert result == {"ok": False, "message": "La réponse de Sakura Optimizer est illisible."}
+
+
+def test_diagnose_gere_le_delai_depasse():
+    def runner(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired("optimizer", 90, stderr="trace technique")
+
+    result = ToolRegistry(diagnose_runner=runner).run("diagnose", {})
+
+    assert result == {"ok": False, "message": "Le diagnostic a pris trop de temps. Réessaie dans un instant."}
+
+
+def test_diagnose_gere_optimizer_absent(monkeypatch, tmp_path):
+    monkeypatch.setattr(tools_module, "REPO", tmp_path)
+    result = ToolRegistry(
+        diagnose_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("aucun lancement attendu"))
+    ).run("diagnose", {})
+
+    assert result == {"ok": False, "message": "Sakura Optimizer est introuvable."}
+
+
+def test_ai_nimporte_jamais_le_code_optimizer():
+    ai_root = Path(__file__).resolve().parents[1]
+    forbidden = []
+    for source in ai_root.rglob("*.py"):
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        for node in ast.walk(tree):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module]
+            if any(name == "sakura_opt" or name.startswith("sakura_opt.") for name in names):
+                forbidden.append(str(source))
+    assert forbidden == []

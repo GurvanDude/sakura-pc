@@ -23,9 +23,23 @@ En plus de répondre aux messages, Sakura peut maintenant utiliser des outils lo
 - lister les applications et les jeux disponibles ;
 - régler le volume général ou couper le son ;
 - chercher un fichier par son nom dans les dossiers personnels ;
+- diagnostiquer les lenteurs, les lags et la chauffe du PC sur les 2, 5 ou 15 dernières minutes ;
 - fermer une application, uniquement après une confirmation dans la conversation.
 
 Les actions et les confirmations sont journalisées sans enregistrer le contenu des messages.
+
+## Contrat avec Sakura Optimizer
+
+Sakura AI n'importe aucun code de l'Optimizer. Pour expliquer pourquoi le PC rame, elle lance uniquement sa
+commande JSON avec le même interpréteur Python :
+
+```powershell
+python apps/optimizer/optimizer.py diagnose --minutes 5 --json
+```
+
+La sortie standard est lue comme du JSON puis réduite aux informations utiles pour la conversation : verdict,
+frein principal, application concernée, disponibilité de suffisamment de mesures et quatre constats au maximum.
+Les détails techniques restent dans le journal en cas d'erreur et ne sont pas affichés dans le chat.
 
 ## Prérequis
 
