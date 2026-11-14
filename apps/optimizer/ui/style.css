@@ -1,5 +1,3 @@
-/* Graphes d'historique : à proposer au kit commun (PR shared). */
-
 .optimizer-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -238,112 +236,18 @@
 }
 
 .history-charts {
-  display: grid;
-  grid-template-columns: 1fr;   /* empilés : en 3 colonnes, les heures devenaient illisibles */
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
   margin-top: 16px;
   min-width: 0;
 }
 
-.history-chart {
-  min-width: 0;
-  padding: 14px;
-}
-
-.history-chart h3 {
-  margin: 0;
-  color: var(--sk-text);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.chart-legend {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 5px;
+.history-range {
+  max-width: 760px;
+  margin: 10px 0 0;
   color: var(--sk-muted);
-  font-size: 10px;
-}
-
-.chart-legend span::before {
-  content: "";
-  display: inline-block;
-  width: 13px;
-  height: 3px;
-  margin-right: 4px;
-  border-radius: var(--sk-radius);
-  vertical-align: middle;
-  background: var(--sk-c);
-}
-
-.legend-cpu { --sk-c: var(--sk-cpu); }
-.legend-gpu { --sk-c: var(--sk-gpu); }
-.legend-ram { --sk-c: var(--sk-ram); }
-
-.chart-wrap {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-}
-
-.chart-wrap svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 130px;
-  overflow: hidden;
-  touch-action: none;
-}
-
-.chart-guide {
-  stroke: var(--sk-line);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.chart-axis {
-  fill: var(--sk-muted);
-  font-size: 10px;
-  font-family: inherit;
-}
-
-.chart-line {
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.chart-area {
-  opacity: .08;
-}
-
-.chart-line.history-cpu { stroke: var(--sk-cpu); }
-.chart-line.history-gpu { stroke: var(--sk-gpu); }
-.chart-line.history-ram { stroke: var(--sk-ram); }
-.chart-area.history-cpu { fill: var(--sk-cpu); }
-.chart-area.history-gpu { fill: var(--sk-gpu); }
-.chart-area.history-ram { fill: var(--sk-ram); }
-
-html[data-theme="night"] .chart-line.history-cpu { filter: drop-shadow(0 0 4px var(--sk-cpu)); }
-html[data-theme="night"] .chart-line.history-gpu { filter: drop-shadow(0 0 4px var(--sk-gpu)); }
-html[data-theme="night"] .chart-line.history-ram { filter: drop-shadow(0 0 4px var(--sk-ram)); }
-
-.chart-tooltip {
-  position: absolute;
-  z-index: 2;
-  max-width: calc(100% - 12px);
-  padding: 6px 8px;
-  border: 1px solid var(--sk-glass-border);
-  border-radius: calc(var(--sk-radius) / 2);
-  color: var(--sk-text);
-  background: var(--sk-surface-strong);
-  box-shadow: var(--sk-primary-shadow);
-  pointer-events: none;
-  white-space: nowrap;
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .sk-actions .sk-details-toggle {
@@ -412,9 +316,6 @@ html[data-theme="night"] .chart-line.history-ram { filter: drop-shadow(0 0 4px v
     grid-template-columns: 1fr;
   }
 
-  .history-chart {
-    width: 100%;
-  }
 }
 
 @media (max-width: 620px) {
@@ -434,9 +335,5 @@ html[data-theme="night"] .chart-line.history-ram { filter: drop-shadow(0 0 4px v
   .sk-row-end {
     flex-basis: 100%;
     text-align: left;
-  }
-
-  .chart-tooltip {
-    white-space: normal;
   }
 }
