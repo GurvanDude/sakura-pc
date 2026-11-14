@@ -6,6 +6,7 @@ Lancer avec : pythonw settings.py
 from __future__ import annotations
 
 import copy
+import datetime
 import json
 import shutil
 import sys
@@ -71,7 +72,10 @@ def _clean_payload(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict) or not isinstance(payload.get("settings"), dict):
         raise ValueError("Réglages incomplets.")
     s = payload["settings"]
-    start, end = int(s.get("day_start", -1)), int(s.get("day_end", -1))
+    try:
+        start, end = int(s.get("day_start", -1)), int(s.get("day_end", -1))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Les heures doivent être comprises entre 0 et 23.") from exc
     if not (0 <= start <= 23 and 0 <= end <= 23):
         raise ValueError("Les heures doivent être comprises entre 0 et 23.")
 
@@ -96,21 +100,22 @@ def _clean_payload(payload: Any) -> dict[str, Any]:
             raise ValueError("Une liste de programmes est invalide.")
         return [str(item).strip() for item in value if str(item).strip()]
 
+    seen_ids: set[str] = set()
+
     def entries(key: str) -> list[dict[str, Any]]:
         value = payload.get(key)
         if not isinstance(value, list):
             raise ValueError(f"La liste {key} est invalide.")
         output: list[dict[str, Any]] = []
-        seen: set[str] = set()
         for item in value:
             if not isinstance(item, dict) or not str(item.get("id", "")).strip():
                 raise ValueError(f"Une entrée de {key} est invalide.")
             entry = copy.deepcopy(item)
             entry["id"] = str(entry["id"]).strip()
             entry["name"] = str(entry.get("name", entry["id"])).strip() or entry["id"]
-            if entry["id"] in seen:
-                raise ValueError(f"L'identifiant {entry['id']} est utilisé deux fois dans {key}.")
-            seen.add(entry["id"])
+            if entry["id"] in seen_ids:
+                raise ValueError(f"L'identifiant {entry['id']} est utilisé deux fois.")
+            seen_ids.add(entry["id"])
             output.append(entry)
         return output
 
@@ -133,6 +138,25 @@ def _clean_payload(payload: Any) -> dict[str, Any]:
     }
 
 
+def _backup_config(config_path: Path) -> Path | None:
+    """Copie la configuration existante et ne garde que les 20 secours récents."""
+    path = Path(config_path)
+    if not path.is_file():
+        return None
+    folder = paths.USER / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    moment = datetime.datetime.now()
+    destination = folder / f"config-{moment:%Y%m%d-%H%M%S}.json"
+    while destination.exists():
+        moment += datetime.timedelta(seconds=1)
+        destination = folder / f"config-{moment:%Y%m%d-%H%M%S}.json"
+    shutil.copy2(path, destination)
+    backups = sorted(folder.glob("config-????????-??????.json"), reverse=True)
+    for old in backups[20:]:
+        old.unlink()
+    return destination
+
+
 def save_managed(
     payload: Any,
     config_path: Path = CONFIG,
@@ -141,6 +165,7 @@ def save_managed(
     """Relit le disque et remplace exclusivement les clés gérées par cette appli."""
     clean = _clean_payload(payload)
     path = Path(config_path)
+    _backup_config(path)
     cfg = _load_config(path)
     settings = cfg.setdefault("settings", {})
     for key in MANAGED_SETTINGS:
@@ -155,6 +180,7 @@ def save_managed(
 class SettingsApi:
     def __init__(self) -> None:
         self._window = None
+        self._maximized = False
 
     def load(self) -> dict[str, Any]:
         return read_managed()
@@ -165,6 +191,19 @@ class SettingsApi:
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+    def minimize(self) -> None:
+        self._window.minimize()
+
+    def toggle_maximize(self) -> None:
+        if self._maximized:
+            self._window.restore()
+        else:
+            self._window.maximize()
+        self._maximized = not self._maximized
+
+    def close(self) -> None:
+        self._window.destroy()
 
     def _dialog(self, file_types: tuple[str, ...]) -> Path | None:
         import webview
@@ -244,6 +283,8 @@ def main() -> None:
         height=850,
         min_size=(900, 650),
         background_color="#0d0a16",
+        frameless=True,
+        easy_drag=False,
     )
     api._window = window
     webview.start(gui="edgechromium", private_mode=False, storage_path=str(ROOT / ".webview"))

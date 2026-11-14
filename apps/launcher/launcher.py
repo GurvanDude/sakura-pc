@@ -64,6 +64,20 @@ def write_data_js(cfg):
 
 def serve(root):
     """Petit serveur local pour l'interface (127.0.0.1 uniquement, port libre au hasard)."""
+    import urllib.parse
+
+    def resolve_path(base, relative):
+        """Résout un chemin web sous base, ou renvoie None s'il essaie d'en sortir."""
+        base = Path(base).resolve()
+        candidate = (base / urllib.parse.unquote(relative).replace('\\', '/').lstrip('/')).resolve()
+        try:
+            candidate.relative_to(base)
+        except ValueError:
+            return None
+        return candidate
+
+    serve.resolve_path = resolve_path
+
     class Handler(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -75,6 +89,10 @@ def serve(root):
         def translate_path(self, path):
             # ce qui est propre à ce PC vient du dossier utilisateur (data.js, jaquettes, icônes d'applis)
             clean = path.split('?', 1)[0].split('#', 1)[0]
+            if clean.startswith('/design/'):
+                design_root = paths.REPO / 'design'
+                target = resolve_path(design_root, clean[len('/design/'):])
+                return str(target if target is not None else design_root / '.forbidden')
             if clean == '/ui/data.js':
                 return str(paths.USER / 'data.js')
             for web, sub in (('/ui/assets/covers/', 'covers'), ('/ui/assets/icons/', 'icons')):
