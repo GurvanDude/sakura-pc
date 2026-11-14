@@ -61,6 +61,22 @@ powershell -ExecutionPolicy Bypass -File apps/optimizer/tools/install_history_ta
 
 La désinstallation arrête l'enregistreur et retire sa tâche planifiée, sans effacer l'historique déjà enregistré.
 
+## Diagnostic
+
+Quand un jeu rame, ouvre Sakura Optimizer puis clique sur **Pourquoi ça rame ?**. Choisis **2 min**, **5 min**
+ou **15 min** : l'outil relit tout de suite les mesures déjà gardées, ajoute l'état actuel du PC et indique le
+frein principal avec les chiffres mesurés et les gestes utiles. Il n'y a rien à lancer en administrateur et tu
+n'as pas à attendre de nouvelles mesures.
+
+La même analyse est disponible dans un terminal :
+
+```powershell
+python optimizer.py diagnose --minutes 5
+python optimizer.py diagnose --minutes 5 --json
+```
+
+La première commande donne une explication simple. La seconde renvoie le résultat complet au format JSON.
+
 ## Outil technique
 
 Le moniteur terminal reste disponible pour le diagnostic technique :

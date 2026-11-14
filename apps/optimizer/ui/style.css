@@ -8,6 +8,111 @@
   min-width: 0;
 }
 
+.diagnosis-panel {
+  min-width: 0;
+  margin: 0 0 22px;
+  padding: 18px 0 22px;
+  border-top: 1px solid var(--sk-line);
+  border-bottom: 1px solid var(--sk-line);
+}
+
+.diagnosis-panel .sk-section-title {
+  margin-top: 0;
+}
+
+.diagnosis-loading {
+  margin: 14px 0 0;
+}
+
+.diagnosis-verdict {
+  min-width: 0;
+}
+
+.diagnosis-verdict .sk-verdict {
+  margin-bottom: 10px;
+}
+
+.diagnosis-verdict .sk-title,
+.diagnosis-verdict .sk-sub {
+  overflow-wrap: anywhere;
+}
+
+.diagnosis-period {
+  margin: 0;
+  color: var(--sk-muted);
+  font-size: 12px;
+}
+
+.diagnosis-findings {
+  margin: 12px 0;
+}
+
+.diagnosis-finding {
+  min-width: 0;
+}
+
+.diagnosis-finding-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diagnosis-finding h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--sk-text);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.diagnosis-finding .sk-stat-state {
+  flex: 0 0 auto;
+}
+
+.diagnosis-explanation {
+  margin: 8px 0 0;
+  color: var(--sk-muted);
+  line-height: 1.5;
+}
+
+.diagnosis-evidence {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.diagnosis-evidence-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.diagnosis-evidence-row span {
+  flex: 0 1 auto;
+  color: var(--sk-muted);
+}
+
+.diagnosis-evidence-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.diagnosis-advice {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--sk-text);
+  line-height: 1.5;
+}
+
+.diagnosis-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
 .stat-figures {
   display: grid;
   gap: 6px;
@@ -287,6 +392,22 @@ html[data-theme="night"] .chart-line.history-ram { filter: drop-shadow(0 0 4px v
 }
 
 @media (max-width: 760px) {
+  .diagnosis-verdict .sk-verdict,
+  .diagnosis-finding-head,
+  .diagnosis-evidence-row {
+    flex-wrap: wrap;
+  }
+
+  .diagnosis-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .diagnosis-controls .sk-seg {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
   .history-charts {
     grid-template-columns: 1fr;
   }

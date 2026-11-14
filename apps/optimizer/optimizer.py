@@ -5,6 +5,7 @@
     python optimizer.py monitor                  moniteur technique temps réel
     python optimizer.py monitor --once           une seule mesure
     python optimizer.py monitor --json           une mesure au format JSON
+    python optimizer.py diagnose --minutes 5     diagnostic des dernières minutes
 """
 import argparse
 import json
@@ -33,7 +34,32 @@ def build_parser():
     monitor.add_argument('--interval', type=float, default=1.0, help='Délai entre deux mesures.')
     monitor.add_argument('--once', action='store_true', help='Affiche une mesure puis quitte.')
     monitor.add_argument('--json', action='store_true', help='Affiche une mesure JSON puis quitte.')
+    diagnostic = subparsers.add_parser(
+        'diagnose', help='Explique ce qui a ralenti le PC dans les dernières minutes.'
+    )
+    diagnostic.add_argument(
+        '--minutes', type=float, default=5, help='Période à analyser, en minutes (5 par défaut).'
+    )
+    diagnostic.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
     return parser
+
+
+def _print_diagnosis(result):
+    """Affiche le diagnostic avec des mots simples dans le terminal."""
+    print(result['verdict']['title'])
+    print(result['verdict']['text'])
+    if not result['findings']:
+        return
+    for finding in result['findings']:
+        label = 'Important' if finding['severity'] == 'grave' else (
+            'Attention' if finding['severity'] == 'attention' else 'Information'
+        )
+        print(f"\n{label} : {finding['title']}")
+        print(finding['explanation'])
+        for evidence in finding['evidence']:
+            print(f"- {evidence['label']} : {evidence['value']}")
+        for advice in finding['advice']:
+            print(f"  Conseil : {advice}")
 
 
 def main():
@@ -63,6 +89,17 @@ def main():
                 Console().print(render(status))
             return 0
         return run(args.interval)
+    if args.command == 'diagnose':
+        if args.minutes <= 0 or args.minutes > 60:
+            parser.error('--minutes doit être compris entre 1 et 60')
+        from sakura_opt.diagnose import run_diagnosis
+
+        result = run_diagnosis(args.minutes)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            _print_diagnosis(result)
+        return 0
     return 0
 
 

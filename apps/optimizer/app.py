@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from core import paths
 from core import window as sk_window
+from sakura_opt.diagnose import run_diagnosis
 from sakura_opt.explain import explain, history_view
 from sakura_opt.history import History
 from sakura_opt.history_mutex import acquire_history_mutex
@@ -221,6 +222,18 @@ class Api:
         summary = self._history.summary(seconds)
         return {"series": series, "view": history_view(series, summary, label)}
 
+    def diagnose(self, minutes: int | float | str = 5) -> dict[str, Any]:
+        """Analyse immédiatement l'historique et la dernière mesure disponible."""
+        try:
+            duration = max(1.0, min(60.0, float(minutes)))
+        except (TypeError, ValueError, OverflowError):
+            duration = 5.0
+        return run_diagnosis(
+            duration,
+            history=self._history,
+            status=self._monitor.get(),
+        )
+
     def free_space(self) -> None:
         """Ouvre les réglages Windows sans supprimer le moindre fichier."""
         self._opener("ms-settings:storagesense")
@@ -259,6 +272,12 @@ def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
             if request_path == "/api/history":
                 period = parse_qs(request.query).get("period", ["1h"])[0]
                 payload = json.dumps(api.get_history(period), ensure_ascii=False).encode("utf-8")
+                self._headers(200, "application/json; charset=utf-8", len(payload))
+                self.wfile.write(payload)
+                return
+            if request_path == "/api/diagnose":
+                minutes = parse_qs(request.query).get("minutes", ["5"])[0]
+                payload = json.dumps(api.diagnose(minutes), ensure_ascii=False).encode("utf-8")
                 self._headers(200, "application/json; charset=utf-8", len(payload))
                 self.wfile.write(payload)
                 return

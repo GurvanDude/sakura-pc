@@ -5,8 +5,10 @@ from __future__ import annotations
 from collections import Counter
 from contextlib import closing
 import math
+import os
 from pathlib import Path
 import sqlite3
+import statistics
 import threading
 import time
 from typing import Any, Callable
@@ -19,8 +21,23 @@ from .names import group_apps
 FIELDS = (
     "cpu", "ram", "gpu", "vram_gb", "cpu_temp", "gpu_temp",
     "gpu_hotspot", "cpu_clock", "disk_read", "disk_write",
+    "core_max", "swap", "vram_total_gb", "disk_busy", "c_free_gb",
+    "top_cpu", "top_ram_gb",
 )
 TEMPERATURE_FIELDS = {"cpu_temp", "gpu_temp", "gpu_hotspot"}
+TEXT_FIELDS = ("top_app", "fg_app", "top_cpu_app", "top_ram_app")
+NEW_COLUMNS = {
+    "core_max": "REAL",
+    "swap": "REAL",
+    "vram_total_gb": "REAL",
+    "disk_busy": "REAL",
+    "c_free_gb": "REAL",
+    "fg_app": "TEXT",
+    "top_cpu_app": "TEXT",
+    "top_cpu": "REAL",
+    "top_ram_app": "TEXT",
+    "top_ram_gb": "REAL",
+}
 
 
 def _number(value: Any) -> float | None:
@@ -67,7 +84,59 @@ class History:
             )
             """
         )
+        existing = {
+            str(row[1]) for row in connection.execute("PRAGMA table_info(samples)").fetchall()
+        }
+        for name, sql_type in NEW_COLUMNS.items():
+            if name not in existing:
+                connection.execute(f"ALTER TABLE samples ADD COLUMN {name} {sql_type}")
         connection.execute("CREATE INDEX IF NOT EXISTS samples_t ON samples(t)")
+
+    @staticmethod
+    def _foreground_app() -> str | None:
+        """Lit l'application au premier plan sans demander de droit supplémentaire."""
+        try:
+            import win32gui
+            import win32process
+
+            handle = win32gui.GetForegroundWindow()
+            if not handle:
+                return None
+            title = str(win32gui.GetWindowText(handle) or "")
+            if "sakura optimizer" in title.casefold():
+                return None
+            _thread, pid = win32process.GetWindowThreadProcessId(handle)
+            if not pid or int(pid) == os.getpid():
+                return None
+            import psutil
+
+            raw_name = psutil.Process(int(pid)).name()
+            plain = Path(raw_name).stem.casefold()
+            if plain == "explorer" or "sakura optimizer" in plain:
+                return None
+            from .names import friendly_name
+
+            name = friendly_name(int(pid), raw_name).strip()
+            if not name or name == "Windows" or "sakura optimizer" in name.casefold():
+                return None
+            return name
+        except Exception:
+            return None
+
+    @staticmethod
+    def _top_process(status: dict[str, Any], key: str, value_key: str) -> tuple[str | None, float | None]:
+        rows = status.get(key)
+        if not isinstance(rows, list):
+            return None, None
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("friendly_name") or row.get("name") or "").strip()
+            if not name or name == "Windows":
+                continue
+            value = _number(row.get(value_key))
+            return (Path(name).stem if name.lower().endswith(".exe") else name), value
+        return None, None
 
     @staticmethod
     def _top_app(status: dict[str, Any]) -> str | None:
@@ -84,6 +153,25 @@ class History:
         status = status if isinstance(status, dict) else {}
         cpu, ram, gpu, disk = (_section(status, key) for key in ("cpu", "ram", "gpu", "disk"))
         temperatures = temps if isinstance(temps, dict) else _section(status, "temps")
+        cores = cpu.get("per_core") if isinstance(cpu.get("per_core"), list) else []
+        core_values = [value for value in (_number(item) for item in cores) if value is not None]
+        per_disk = disk.get("per_disk") if isinstance(disk.get("per_disk"), dict) else {}
+        busy_values = [
+            value
+            for item in per_disk.values() if isinstance(item, dict)
+            for value in [_number(item.get("busy_percent"))]
+            if value is not None
+        ]
+        partitions = disk.get("partitions") if isinstance(disk.get("partitions"), list) else []
+        c_free = next(
+            (
+                _number(item.get("free_gb")) for item in partitions
+                if isinstance(item, dict) and str(item.get("mount") or "").upper().startswith("C:")
+            ),
+            None,
+        )
+        top_cpu_app, top_cpu = self._top_process(status, "top_cpu", "cpu_percent")
+        top_ram_app, top_ram_mb = self._top_process(status, "top_ram", "ram_mb")
         values = (
             self.now(),
             _number(cpu.get("percent")),
@@ -97,13 +185,30 @@ class History:
             _number(disk.get("read_mb_s")),
             _number(disk.get("write_mb_s")),
             self._top_app(status),
+            max(core_values) if core_values else None,
+            _number(ram.get("swap_percent")),
+            _number(gpu.get("vram_total_gb")),
+            max(busy_values) if busy_values else None,
+            c_free,
+            self._foreground_app(),
+            top_cpu_app,
+            top_cpu,
+            top_ram_app,
+            round(top_ram_mb / 1024, 3) if top_ram_mb is not None else None,
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as connection:
             with connection:
                 self._create(connection)
+                columns = (
+                    "t, cpu, ram, gpu, vram_gb, cpu_temp, gpu_temp, gpu_hotspot, "
+                    "cpu_clock, disk_read, disk_write, top_app, core_max, swap, "
+                    "vram_total_gb, disk_busy, c_free_gb, fg_app, top_cpu_app, "
+                    "top_cpu, top_ram_app, top_ram_gb"
+                )
+                placeholders = ", ".join("?" for _ in values)
                 connection.execute(
-                    "INSERT INTO samples VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", values
+                    f"INSERT INTO samples ({columns}) VALUES ({placeholders})", values
                 )
         self._prune_if_due()
 
@@ -131,10 +236,12 @@ class History:
             return []
         try:
             with closing(self._connect(timeout=0.0)) as connection:
-                return connection.execute(
-                    "SELECT * FROM samples WHERE t >= ? ORDER BY t",
-                    (self.now() - max(0.0, float(since_s)),),
-                ).fetchall()
+                with connection:
+                    self._create(connection)
+                    return connection.execute(
+                        "SELECT * FROM samples WHERE t >= ? ORDER BY t",
+                        (self.now() - max(0.0, float(since_s)),),
+                    ).fetchall()
         except (OSError, sqlite3.Error, TypeError, ValueError):
             return []
 
@@ -164,9 +271,20 @@ class History:
                     round(max(values) if field in TEMPERATURE_FIELDS else sum(values) / len(values), 2)
                     if values else None
                 )
-            names = Counter(str(row["top_app"]) for row in bucket if row["top_app"])
-            item["top_app"] = names.most_common(1)[0][0] if names else None
+            for field in TEXT_FIELDS:
+                names = Counter(str(row[field]) for row in bucket if row[field])
+                item[field] = names.most_common(1)[0][0] if names else None
             result.append(item)
+        return result
+
+    def baseline(self, since_s: float = 7 * 86400) -> dict[str, float]:
+        """Renvoie les valeurs médianes connues pour comparer avec l'habitude."""
+        rows = self._rows(since_s)
+        result: dict[str, float] = {}
+        for field in ("cpu_temp", "gpu_temp", "gpu_hotspot"):
+            values = [float(row[field]) for row in rows if row[field] is not None]
+            if values:
+                result[field] = round(statistics.median(values), 2)
         return result
 
     def summary(self, since_s: float) -> dict[str, Any]:
