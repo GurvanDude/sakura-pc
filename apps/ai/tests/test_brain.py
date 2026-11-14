@@ -150,6 +150,37 @@ def test_modele_lu_dans_la_configuration(sakura_home):
     assert brain.model_name() == "gemma3:12b"
 
 
+def test_make_title_nettoie_la_reponse(monkeypatch, sakura_home):
+    payload = json.dumps({"message": {"content": "« Ranger les fichiers Sakura. »"}}).encode()
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data)
+        return FakeResponse([payload])
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    assert brain.make_title("Comment ranger mes fichiers ?", "Voici comment.") == "Ranger les fichiers Sakura"
+    assert captured["payload"]["stream"] is False
+    assert captured["payload"]["think"] is False
+
+
+def test_make_title_se_replie_sur_la_question(monkeypatch, sakura_home):
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(urllib.error.URLError("absent")),
+    )
+
+    title = brain.make_title(
+        "Comment organiser proprement tous les très anciens fichiers de mon ordinateur ?",
+        "",
+    )
+
+    assert len(title) <= 40
+    assert title == "Comment organiser proprement tous les"
+
+
 def test_conversation_limitee_aux_derniers_messages():
     messages = [{"role": "user", "content": str(index)} for index in range(40)]
     trimmed = brain._trim_messages(messages)

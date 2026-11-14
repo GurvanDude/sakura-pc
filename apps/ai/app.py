@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlsplit
 from core import paths
 from core import window as sk_window
 from sakura_ai import brain
-from sakura_ai.history import ChatHistory
+from sakura_ai.history import ChatHistory, ChatStore
 from sakura_ai.tools import Tool, ToolRegistry
 
 ROOT = Path(__file__).resolve().parent
@@ -52,8 +52,19 @@ class Api:
     # Attributs privés (_) : pywebview explore tout attribut public du js_api,
     # et se perd dans la fenêtre native si on lui en donne une.
 
-    def __init__(self, history: ChatHistory | None = None, logger: logging.Logger | None = None) -> None:
-        self._chat = history or ChatHistory()
+    def __init__(
+        self,
+        history: ChatHistory | None = None,
+        logger: logging.Logger | None = None,
+        store: ChatStore | None = None,
+    ) -> None:
+        if history is not None:
+            self._store = history._store
+            self._current_id = history._id
+        else:
+            self._store = store or ChatStore(logger=logger)
+            listed = self._store.list()
+            self._current_id = listed[0]["id"] if listed else self._store.create()["id"]
         self._logger = logger or _logger()
         self._window: Any = None
         self._maximized = False
@@ -69,7 +80,27 @@ class Api:
         return {"ok": ok, "message": message}
 
     def history(self) -> list[dict[str, str]]:
-        return list(self._chat.messages)
+        try:
+            return list(self._store.load(self._current_id)["messages"])
+        except (OSError, ValueError, FileNotFoundError):
+            return []
+
+    def chats(self) -> list[dict[str, str]]:
+        return self._store.list()
+
+    def current(self) -> str:
+        return self._current_id
+
+    def open_chat(self, chat_id: str) -> dict[str, Any]:
+        with self._lock:
+            if self._busy:
+                return {"ok": False, "message": "Arrête d'abord la réponse en cours."}
+            try:
+                chat = self._store.load(chat_id)
+            except (OSError, ValueError, FileNotFoundError):
+                return {"ok": False, "message": "Cette discussion est introuvable."}
+            self._current_id = chat["id"]
+        return {"ok": True, "id": chat["id"], "messages": chat["messages"]}
 
     def send(self, text: str) -> dict[str, Any]:
         text = text.strip() if isinstance(text, str) else ""
@@ -81,15 +112,18 @@ class Api:
             self._busy = True
             self._stop.clear()
             try:
-                self._chat.append("user", text)
-                messages = list(self._chat.messages)
+                chat_id = self._current_id
+                before = self._store.load(chat_id)["messages"]
+                first_question = text if not before else None
+                chat = self._store.append(chat_id, "user", text)
+                messages = list(chat["messages"])
             except OSError:
                 self._busy = False
                 self._logger.exception("Impossible d'enregistrer un nouveau message")
                 return {"ok": False, "message": "Le message n'a pas pu être enregistré. Réessaie."}
         threading.Thread(
             target=self._answer,
-            args=(messages,),
+            args=(messages, chat_id, first_question),
             daemon=True,
             name="sakura-ai-answer",
         ).start()
@@ -118,11 +152,48 @@ class Api:
             if self._busy:
                 return {"ok": False, "message": "Arrête d'abord la réponse en cours."}
             try:
-                self._chat.clear()
-            except OSError:
-                self._logger.exception("Impossible de vider la conversation")
-                return {"ok": False, "message": "La discussion n'a pas pu être effacée. Réessaie."}
-        return {"ok": True}
+                if not self._store.load(self._current_id)["messages"]:
+                    self._store.delete(self._current_id)
+            except (OSError, ValueError, FileNotFoundError):
+                pass
+            chat = self._store.create()
+            self._current_id = chat["id"]
+        self._logger.info("Nouvelle discussion préparée id=%s", chat["id"])
+        return {"ok": True, "id": chat["id"], "messages": []}
+
+    def rename_chat(self, chat_id: str, title: str) -> dict[str, Any]:
+        title = title.strip() if isinstance(title, str) else ""
+        if not title:
+            return {"ok": False, "message": "Donne un titre à la discussion."}
+        try:
+            chat = self._store.rename(chat_id, title)
+        except (OSError, ValueError, FileNotFoundError):
+            return {"ok": False, "message": "La discussion n'a pas pu être renommée."}
+        self._logger.info("Discussion renommée id=%s", chat_id)
+        return {"ok": True, "title": chat["title"]}
+
+    def delete_chat(self, chat_id: str) -> dict[str, Any]:
+        with self._lock:
+            if self._busy and chat_id == self._current_id:
+                return {"ok": False, "message": "Arrête d'abord la réponse en cours."}
+            try:
+                self._store.load(chat_id)
+                self._store.delete(chat_id)
+            except (OSError, ValueError, FileNotFoundError):
+                return {"ok": False, "message": "La discussion n'a pas pu être supprimée."}
+            self._logger.info("Discussion mise à la corbeille id=%s", chat_id)
+            if chat_id == self._current_id:
+                listed = self._store.list()
+                if listed:
+                    self._current_id = listed[0]["id"]
+                    messages = self._store.load(self._current_id)["messages"]
+                else:
+                    chat = self._store.create()
+                    self._current_id = chat["id"]
+                    messages = []
+            else:
+                messages = self._store.load(self._current_id)["messages"]
+        return {"ok": True, "id": self._current_id, "messages": messages}
 
     def minimize(self) -> None:
         if self._window is not None:
@@ -187,9 +258,10 @@ class Api:
     def _on_action(self, text: str) -> None:
         self._js("onAction", text)
 
-    def _answer(self, messages: list[dict[str, str]]) -> None:
+    def _answer(self, messages: list[dict[str, str]], chat_id: str, first_question: str | None) -> None:
         started = time.monotonic()
         pending: list[str] = []
+        actions: list[str] = []
         last_flush = 0.0
 
         def flush() -> None:
@@ -204,6 +276,10 @@ class Api:
             if time.monotonic() - last_flush >= 0.05:
                 flush()
 
+        def action(text: str) -> None:
+            actions.append(text)
+            self._on_action(text)
+
         answer = ""
         try:
             answer = brain.chat_stream(
@@ -212,11 +288,19 @@ class Api:
                 self._stop,
                 tools=self._tools,
                 confirm=self._confirm,
-                on_action=self._on_action,
+                on_action=action,
             )
             flush()
-            if answer:
-                self._chat.append("assistant", answer)
+            if answer or actions:
+                extra = {"actions": actions} if actions else {}
+                self._store.append(chat_id, "assistant", answer, **extra)
+                if first_question is not None:
+                    threading.Thread(
+                        target=self._make_title,
+                        args=(chat_id, first_question, answer),
+                        daemon=True,
+                        name="sakura-ai-title",
+                    ).start()
             self._js("onDone")
             duration = time.monotonic() - started
             self._logger.info("Réponse terminée en %.2f s%s", duration, " (arrêtée)" if self._stop.is_set() else "")
@@ -228,6 +312,14 @@ class Api:
         finally:
             with self._lock:
                 self._busy = False
+
+    def _make_title(self, chat_id: str, question: str, answer: str) -> None:
+        title = brain.make_title(question, answer)
+        try:
+            self._store.rename(chat_id, title, automatic=True)
+            self._js("onChatsChanged")
+        except (OSError, ValueError, FileNotFoundError):
+            self._logger.exception("Impossible d'enregistrer le titre id=%s", chat_id)
 
 
 def _serve() -> tuple[socketserver.ThreadingTCPServer, int]:

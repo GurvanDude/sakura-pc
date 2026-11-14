@@ -1,8 +1,19 @@
 # Sakura AI
 
-Sakura AI est l'assistante locale de Sakura PC. Cette première version permet de discuter simplement avec un
-modèle Ollama dans une fenêtre Sakura, disponible en thème jour ou nuit grâce au kit UI commun. La conversation
-en cours reste disponible au prochain démarrage.
+Sakura AI est l'assistante locale de Sakura PC. Elle permet de discuter avec un modèle Ollama dans une fenêtre
+Sakura, disponible en thème jour ou nuit grâce au kit UI commun. Les discussions restent disponibles au prochain
+démarrage et se retrouvent dans la colonne de gauche, regroupées par date.
+
+## Discussions
+
+- **＋ Nouvelle discussion** prépare un fil vierge sans créer de fichier inutile ;
+- le bouton **☰** affiche ou masque la liste (elle devient un panneau sur une fenêtre étroite) ;
+- les boutons **✎** et **🗑** permettent de renommer une discussion ou de la placer dans la corbeille ;
+- après le premier échange, Ollama propose automatiquement un titre court, sans remplacer un titre choisi à la main.
+
+Une conversation est enregistrée dans `%APPDATA%\SakuraPC\ai\chats` au premier message. Une discussion supprimée
+est déplacée dans le sous-dossier `.trash` et reste donc récupérable. L'ancien `chat.json`, lorsqu'il existe, est
+migré une seule fois puis conservé sous le nom `chat.migrated.json`.
 
 ## Ce que Sakura sait faire
 
