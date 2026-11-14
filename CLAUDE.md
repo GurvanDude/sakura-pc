@@ -19,6 +19,10 @@ Garder quand même les données perso hors du dépôt (`core.paths`) pour que ce
 - Python 3.13, interfaces en pywebview (HTML/CSS/JS servis en local), Windows uniquement.
 - Textes à l'écran et commentaires en français, ton simple. Le japonais seulement en décoration.
 - Couleurs et polices : `design/tokens.css` ; logos : `design/tools/make_logos.py`.
+- **Interface : suivre `design/charte.md` et réutiliser le kit `design/ui/`** (`sakura.css`, `sakura.js`, démo
+  `design/ui/demo.html`). Jour et nuit pour chaque écran. Un élément manque ? On le compose avec le kit, puis
+  on le propose à l'agent principal pour l'ajouter au kit ; on ne modifie pas `design/` depuis une branche d'appli.
+  Seul l'écran principal du Launcher garde son style à lui (déjà fini).
 - Toute action risquée sur le PC (supprimer, désinstaller, modifier le registre ou le démarrage) :
   aperçu, confirmation, possibilité d'annuler, et journal.
 - Les apps exposent leurs fonctions comme des outils simples pour que Sakura AI puisse les appeler.
