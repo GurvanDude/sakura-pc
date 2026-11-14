@@ -18,8 +18,12 @@ SYSTEM_PROMPT = (
     "Tu t'appelles Sakura. Tu es l'assistante du PC de Gurvan. "
     "Tu réponds en français, avec un ton simple et chaleureux. "
     "Tes réponses sont courtes, sauf si Gurvan demande des détails. "
-    "Tu ne prétends jamais pouvoir agir sur le PC : cette possibilité viendra plus tard."
+    "Tu peux agir sur son PC avec les outils fournis. Si Gurvan demande une action, "
+    "appelle immédiatement l'outil adapté : n'annonce jamais « je vais chercher » ou une action sans l'appeler. "
+    "N'invente jamais le résultat d'un outil. Après son exécution, dis simplement ce qui s'est passé. "
+    "Si plusieurs noms correspondent, demande à Gurvan lequel il veut."
 )
+MAX_TOOL_ROUNDS = 4
 
 
 class OllamaError(RuntimeError):
@@ -134,58 +138,116 @@ def chat_stream(
     messages: Iterable[dict[str, Any]],
     on_chunk: Callable[[str], None],
     stop_event: threading.Event,
+    tools: Any = None,
+    confirm: Callable[[Any, dict[str, Any]], bool] | None = None,
+    on_action: Callable[[str], None] | None = None,
 ) -> str:
-    """Envoie une conversation et transmet la réponse morceau par morceau."""
-    body = json.dumps(
-        {
-            "model": model_name(),
-            "messages": _trim_messages(messages),
-            "stream": True,
-            "think": False,
-        },
-        ensure_ascii=False,
-    ).encode("utf-8")
-    request = urllib.request.Request(
-        f"{OLLAMA_URL}/api/chat",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    filtered = ThinkFilter()
+    """Diffuse la réponse et exécute jusqu'à quatre tours d'outils."""
+    conversation: list[dict[str, Any]] = list(_trim_messages(messages))
     complete: list[str] = []
 
-    try:
-        with _request(request, timeout=120.0) as response:
-            for raw_line in response:
-                if stop_event.is_set():
-                    break
-                if not raw_line.strip():
-                    continue
-                try:
-                    item = json.loads(raw_line.decode("utf-8"))
-                except (ValueError, UnicodeError) as exc:
-                    raise OllamaError("La réponse d'Ollama est illisible. Réessaie.") from exc
-                if not isinstance(item, dict):
-                    raise OllamaError("La réponse d'Ollama est illisible. Réessaie.")
-                if item.get("error"):
-                    raise OllamaError("Ollama n'a pas pu préparer la réponse. Réessaie.")
-                message = item.get("message")
-                content = message.get("content", "") if isinstance(message, dict) else ""
-                if isinstance(content, str) and content:
-                    visible = filtered.feed(content)
-                    if visible:
-                        complete.append(visible)
-                        on_chunk(visible)
-                if item.get("done"):
-                    break
-    except OllamaError:
-        raise
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise OllamaError("La connexion avec Ollama a été interrompue. Réessaie.") from exc
+    for tool_round in range(MAX_TOOL_ROUNDS):
+        if stop_event.is_set():
+            break
+        payload: dict[str, Any] = {
+            "model": model_name(),
+            "messages": conversation,
+            "stream": True,
+            "think": False,
+        }
+        if tools is not None:
+            payload["tools"] = tools.schemas()
+        request = urllib.request.Request(
+            f"{OLLAMA_URL}/api/chat",
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        filtered = ThinkFilter()
+        round_content: list[str] = []
+        tool_calls: list[dict[str, Any]] = []
 
-    tail = filtered.finish()
-    if tail:
-        complete.append(tail)
-        on_chunk(tail)
+        try:
+            with _request(request, timeout=120.0) as response:
+                for raw_line in response:
+                    if stop_event.is_set():
+                        break
+                    if not raw_line.strip():
+                        continue
+                    try:
+                        item = json.loads(raw_line.decode("utf-8"))
+                    except (ValueError, UnicodeError) as exc:
+                        raise OllamaError("La réponse d'Ollama est illisible. Réessaie.") from exc
+                    if not isinstance(item, dict):
+                        raise OllamaError("La réponse d'Ollama est illisible. Réessaie.")
+                    if item.get("error"):
+                        raise OllamaError("Ollama n'a pas pu préparer la réponse. Réessaie.")
+                    message = item.get("message")
+                    content = message.get("content", "") if isinstance(message, dict) else ""
+                    if isinstance(content, str) and content:
+                        visible = filtered.feed(content)
+                        if visible:
+                            round_content.append(visible)
+                            complete.append(visible)
+                            on_chunk(visible)
+                    calls = message.get("tool_calls") if isinstance(message, dict) else None
+                    if isinstance(calls, list):
+                        tool_calls.extend(call for call in calls if isinstance(call, dict))
+                    if item.get("done"):
+                        break
+        except OllamaError:
+            raise
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise OllamaError("La connexion avec Ollama a été interrompue. Réessaie.") from exc
+
+        tail = filtered.finish()
+        if tail:
+            round_content.append(tail)
+            complete.append(tail)
+            on_chunk(tail)
+        if stop_event.is_set() or not tool_calls:
+            break
+        conversation.append({"role": "assistant", "content": "".join(round_content), "tool_calls": tool_calls})
+        for call in tool_calls:
+            if stop_event.is_set():
+                break
+            function = call.get("function", {})
+            name = function.get("name", "") if isinstance(function, dict) else ""
+            args = _tool_arguments(function.get("arguments", {}) if isinstance(function, dict) else {})
+            definition = tools.get(name) if hasattr(tools, "get") else None
+            risky = bool(getattr(definition, "risky", False))
+            if risky and (confirm is None or not confirm(definition, args)):
+                result = {"ok": False, "message": "Action annulée : Gurvan a répondu non. Dis-lui simplement que tu ne l'as pas fait."}
+            else:
+                result = tools.run(name, args)
+                if on_action is not None and result.get("ok"):
+                    try:
+                        # le nom exact trouvé (ex. « Minecraft (moddé) ») plutôt que celui tapé
+                        on_action(tools.describe(name, {**args, **({"name": result["name"]} if "name" in result else {})}))
+                    except (AttributeError, TypeError):
+                        on_action(name)
+            conversation.append({
+                "role": "tool",
+                "tool_name": name,
+                "content": json.dumps(result, ensure_ascii=False),
+            })
+        if tool_round == MAX_TOOL_ROUNDS - 1 and not stop_event.is_set():
+            warning = "J'ai atteint la limite de quatre tours d'outils. Reformule ta demande pour continuer."
+            complete.append(warning)
+            on_chunk(warning)
+
     return "".join(complete)
+
+
+def _tool_arguments(value: Any) -> dict[str, Any]:
+    """Accepte les arguments Ollama sous forme d'objet ou de JSON."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            decoded = json.loads(value)
+            return decoded if isinstance(decoded, dict) else {}
+        except ValueError:
+            return {}
+    return {}
 
