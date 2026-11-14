@@ -6,6 +6,7 @@ import difflib
 import json
 import os
 import re
+import shutil
 import sys
 import time
 import unicodedata
@@ -187,6 +188,10 @@ def _launcher_start(launch: dict[str, Any], browser: str | None) -> None:
     if "url" in launch and not browser:
         os.startfile(launch["url"])
         return
+    exe = launch.get("exe")
+    if exe and not os.path.isabs(exe):
+        # « notepad.exe » seul : le Launcher démarrerait dans un dossier vide, on donne le chemin complet
+        launch = {**launch, "exe": shutil.which(exe) or exe}
     launcher_path = str(LAUNCHER_ROOT)
     if launcher_path not in sys.path:
         sys.path.insert(0, launcher_path)
