@@ -13,6 +13,7 @@ import ctypes
 import json
 import logging
 import math
+import os
 import random
 import subprocess
 import threading
@@ -785,6 +786,7 @@ class Lights:
         # la carte mère reste noire à l'allumage grâce au BIOS (LEDs in System Power On State = Off) : on ne
         # touche plus à sa puce ici, car si l'extinction est annulée elle clignoterait en boucle
         log.info("Windows s'éteint : lumières en pause")
+        start_guard(os.getpid())
 
     def unpark(self):
         """L'extinction a été annulée : on reprend comme avant."""
@@ -1000,6 +1002,47 @@ def start_icue():
         log.info('iCUE lancé en avance')
 
 
+GUARD_SECONDS = 180   # après une annonce d'extinction, combien de temps le gardien surveille le service
+
+
+def start_guard(pid):
+    """Lance un petit gardien séparé : si Windows annule l'extinction mais a déjà fermé le service, il le relance."""
+    try:
+        pyw = Path(sys.executable).with_name('pythonw.exe')
+        subprocess.Popen([str(pyw), str(ROOT / 'lights.py'), '--guard', str(pid)], cwd=ROOT,
+                         creationflags=0x08000000 | 0x00000008)   # sans fenêtre, détaché du service
+    except Exception:
+        log.exception('gardien non lancé')
+
+
+def process_alive(pid):
+    """Vrai si le processus pid tourne encore."""
+    k32 = ctypes.windll.kernel32
+    h = k32.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return False
+    code = ctypes.c_ulong()
+    ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
+    k32.CloseHandle(h)
+    return bool(ok) and code.value == 259     # STILL_ACTIVE
+
+
+def guard(pid, alive=process_alive, restart=None, sleep=time.sleep, seconds=None, step=5):
+    """Surveille le service pendant GUARD_SECONDS. S'il disparaît alors que Windows tourne toujours
+    (extinction annulée), on le relance. Si l'extinction a vraiment lieu, Windows ferme le gardien avec le reste."""
+    restart = restart or ensure_running
+    waited, seconds = 0, GUARD_SECONDS if seconds is None else seconds
+    while waited < seconds:
+        sleep(step)
+        waited += step
+        if not alive(pid):
+            sleep(step)                            # laisse à Windows le temps d'éteindre pour de bon
+            log.info("le service des lumières s'est arrêté sans extinction : relance")
+            restart()
+            return True
+    return False
+
+
 def ensure_running():
     """Démarre le programme lumières s'il ne tourne pas déjà (le mutex évite les doublons)."""
     import sys
@@ -1008,6 +1051,9 @@ def ensure_running():
 
 
 if __name__ == '__main__':
+    if len(sys.argv) == 3 and sys.argv[1] == '--guard':
+        guard(int(sys.argv[2]))
+        raise SystemExit
     ctypes.windll.kernel32.CreateMutexW(None, False, 'SakuraLauncher.lights')
     if ctypes.windll.kernel32.GetLastError() == 183:   # déjà lancé
         raise SystemExit
