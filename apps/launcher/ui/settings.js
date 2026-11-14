@@ -3,7 +3,6 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const esc = value => Sakura.esc(value ?? '');
   const api = () => window.pywebview?.api;
-  const coverStyles = new Map();
   let state = null;
   let original = '';
   let dirty = false;
@@ -11,8 +10,8 @@
 
   const titles = {
     games: ['Jeux', 'Choisis les jeux affichés sur l’écran principal.', 'cover'],
-    apps: ['Applis', 'Choisis les applications proposées sur le second écran.', 'icon'],
-    classic: ['Classiques', 'Choisis les programmes lancés par le mode classique.', 'icon'],
+    apps: ['Tes applis', 'Celles qu’on peut lancer à côté du jeu, sur l’écran secondaire.', 'icon'],
+    classic: ['Lancement classique', 'Ce qui s’ouvre quand tu choisis « Lancement classique du PC », comme un Windows normal.', 'icon'],
   };
 
   function toast(message, error = false) { Sakura.toast(message, {kind: error ? 'warn' : 'ok'}); }
@@ -30,6 +29,9 @@
     next[type] = value;
     item.launch = next;
   }
+  function launchTypeLabel(type) {
+    return {exe: 'Programme', url: 'Adresse web', uri: 'Lien d’appli', file: 'Fichier'}[type] || type;
+  }
 
   function renderHours() {
     for (const id of ['dayStart', 'dayEnd']) {
@@ -46,14 +48,41 @@
     state.settings.day_start = start;
     state.settings.day_end = end;
     $('#hoursSentence').textContent = `Le jour va de ${start} h à ${end} h, et la nuit prend le relais le reste du temps.`;
+    updateTimeline(start, end);
+  }
+  function updateTimeline(start, end) {
+    const percent = hour => `${hour / 24 * 100}%`;
+    const night = 'var(--sk-timeline-night)';
+    const dawn = 'var(--sk-timeline-dawn)';
+    const noon = 'var(--sk-timeline-noon)';
+    let stops;
+    if (start < end) {
+      const middle = (start + end) / 2;
+      stops = `${night} 0 ${percent(start)}, ${dawn} ${percent(start)}, ${noon} ${percent(middle)}, ${dawn} ${percent(end)}, ${night} ${percent(end)} 100%`;
+    } else if (start > end) {
+      const morningMiddle = end / 2;
+      const eveningMiddle = (start + 24) / 2;
+      stops = `${dawn} 0, ${noon} ${percent(morningMiddle)}, ${dawn} ${percent(end)}, ${night} ${percent(end)} ${percent(start)}, ${dawn} ${percent(start)}, ${noon} ${percent(eveningMiddle)}, ${dawn} 100%`;
+    } else {
+      stops = `${night} 0 100%`;
+    }
+    const dayLength = (end - start + 24) % 24;
+    const nightLength = 24 - dayLength;
+    const sunAt = (start + dayLength / 2) % 24;
+    const moonAt = (end + nightLength / 2) % 24;
+    $('#dayTimeline').style.background = `linear-gradient(to right, ${stops})`;
+    $('.timeline-sun').style.left = percent(sunAt);
+    $('.timeline-moon').style.left = percent(moonAt);
   }
   function renderBackgrounds() {
-    const labels = {day: 'Jour', night: 'Nuit', main: 'Écran principal', side: 'Écran secondaire'};
+    const labels = {day: 'Jour', night: 'Nuit', main: 'principal', side: 'second'};
+    const badges = {day: '☀', night: '☾', main: 'Principal', side: 'Second'};
     $('#backgrounds').innerHTML = ['day', 'night'].flatMap(theme => ['main', 'side'].map(screen => {
       const name = state.settings.backgrounds[theme][screen];
+      const filename = `${name}.jpg`;
       return `<article class="sk-card background-card" data-theme="${theme}" data-screen="${screen}">
-        <img src="assets/bg/${esc(name)}.jpg" alt="Aperçu du fond ${labels[theme].toLowerCase()}">
-        <div><h3>${labels[theme]} · ${labels[screen]}</h3><p>${esc(name)}</p><button class="sk-btn sk-btn--secondary sk-btn--small change-bg" type="button">Changer</button></div>
+        <div class="background-preview"><img src="assets/bg/${esc(name)}.jpg" alt="Aperçu du fond ${labels[theme].toLowerCase()}"><span class="background-badge">${badges[theme]} ${badges[screen]}</span></div>
+        <div><h4>${labels[theme]} · ${labels[screen]}</h4><p title="${esc(filename)}">${esc(filename)}</p><button class="sk-btn sk-btn--secondary sk-btn--small change-bg" type="button">Changer</button></div>
       </article>`;
     })).join('');
   }
@@ -61,18 +90,24 @@
   function itemHtml(item, kind, index, total) {
     const imageKey = titles[kind][2];
     const path = item[imageKey] || '';
-    const painted = kind === 'games' || Boolean(path);
+    const painted = kind === 'games' || kind === 'apps';
     const [launchType, target] = launchParts(item);
     const extra = {...item};
     ['id', 'name', imageKey, 'launch', 'process', 'auto'].forEach(key => delete extra[key]);
     const thumb = path
       ? `<img class="thumb ${imageKey === 'icon' ? 'icon' : ''}" src="${esc(imageUrl(path))}" alt="Image de ${esc(item.name)}">`
       : `<div class="thumb thumb-fallback" aria-hidden="true">${esc((item.name || '?')[0])}</div>`;
-    return `<article class="sk-row item" data-index="${index}" data-image="${esc(path)}" ${painted ? 'data-sk-brush' : ''}>
+    const isClassic = kind === 'classic';
+    const imageAction = isClassic
+      ? '<span>Image</span><button class="sk-btn sk-btn--secondary sk-btn--small change-image advanced-image" type="button">Changer</button>'
+      : '';
+    return `<article class="sk-row item ${kind}-item ${isClassic ? 'classic-item' : ''}" data-index="${index}" data-image="${esc(path)}" ${painted ? 'data-sk-brush' : ''}>
       ${thumb}
       <div class="sk-row-main item-main">
         <input class="sk-input item-name" value="${esc(item.name)}" aria-label="Nom">
-        <details><summary>Avancé</summary><div class="advanced">
+        ${isClassic ? `<div class="item-type">${esc(launchTypeLabel(launchType))}</div>` : ''}
+        <details><summary>${kind === 'games' ? 'Avancé' : 'Avancé ▾'}</summary><div class="advanced">
+          ${imageAction}
           <label>Type <select class="sk-select launch-type">${['exe', 'url', 'uri', 'file'].map(value => `<option value="${value}" ${value === launchType ? 'selected' : ''}>${value}</option>`).join('')}</select></label>
           <label>Cible <input class="sk-input launch-target" value="${esc(target)}"></label>
           <label>Processus <input class="sk-input process" value="${esc(item.process || '')}" placeholder="exemple.exe"></label>
@@ -81,7 +116,7 @@
         </div></details>
       </div>
       <div class="item-actions">
-        <button class="sk-chip change-image" type="button">Image</button>
+        ${isClassic ? '' : '<button class="sk-chip change-image" type="button">Image</button>'}
         <button class="sk-chip move up" type="button" aria-label="Monter ${esc(item.name)}" title="Monter" ${index === 0 ? 'disabled' : ''}>↑</button>
         <button class="sk-chip move down" type="button" aria-label="Descendre ${esc(item.name)}" title="Descendre" ${index === total - 1 ? 'disabled' : ''}>↓</button>
         <button class="sk-btn sk-btn--danger sk-btn--small remove" type="button">Retirer</button>
@@ -97,11 +132,7 @@
       if (!path || image.tagName !== 'IMG') {
         await Sakura.brush(row, {color: 'var(--sk-accent-soft)', variant: index});
       } else {
-        if (!coverStyles.has(path)) coverStyles.set(path, Sakura.coverColor(image));
-        const style = await coverStyles.get(path);
-        await Sakura.brush(row, {color: style.color, variant: index});
-        row.classList.toggle('is-dark', style.dark);
-        row.style.setProperty('--sk-n', style.dark ? 'var(--sk-cover-dark)' : style.color);
+        await Sakura.brush(row, {color: 'auto', img: image, variant: index});
       }
       row.classList.toggle('sk-neon', Sakura.getTheme() === 'night');
     }));
@@ -111,8 +142,9 @@
     const [title, subtitle] = titles[kind];
     const panel = $('#' + kind);
     const list = state[kind];
+    const addFileLabel = kind === 'apps' ? 'Choisir une appli sur le PC' : kind === 'classic' ? 'Choisir un programme' : 'Choisir un programme .exe';
     panel.innerHTML = `<div class="heading"><div><h2 class="sk-section-title">${title}</h2><p class="sk-sub">${subtitle}</p></div></div>
-      <div class="add-area"><button class="sk-btn sk-btn--primary add-file" type="button">Choisir un programme .exe</button><button class="sk-btn sk-btn--secondary add-link" type="button">Coller une adresse</button>
+      <div class="add-area"><button class="sk-btn sk-btn--primary add-file" type="button">${addFileLabel}</button><button class="sk-btn sk-btn--secondary add-link" type="button">Coller une adresse</button>
         <div class="link-form"><input class="sk-input new-name" placeholder="Nom affiché"><input class="sk-input new-address" placeholder="https://… ou steam://…"><button class="sk-btn sk-btn--primary confirm-link" type="button">Ajouter</button></div>
       </div><div class="item-list">${list.length ? list.map((item, index) => itemHtml(item, kind, index, list.length)).join('') : '<div class="empty">Tu n’as encore rien ajouté ici.</div>'}</div>`;
     paintRows(panel);
@@ -196,7 +228,11 @@
       const row = event.target.closest('.item');
       if (!row) return;
       const item = state[kind][+row.dataset.index];
-      if (event.target.classList.contains('launch-type')) setLaunch(item, event.target.value, $('.launch-target', row).value);
+      if (event.target.classList.contains('launch-type')) {
+        setLaunch(item, event.target.value, $('.launch-target', row).value);
+        const type = $('.item-type', row);
+        if (type) type.textContent = launchTypeLabel(event.target.value);
+      }
       if (event.target.classList.contains('extra')) {
         try {
           const extra = JSON.parse(event.target.value || '{}');
