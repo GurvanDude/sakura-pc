@@ -113,6 +113,16 @@ def _entry_names(entry: dict[str, Any]) -> list[str]:
     return [entry["name"], *(alias for alias in aliases if isinstance(alias, str))]
 
 
+def _words_match(wanted: str, name: str) -> bool:
+    """Chaque mot important demandé doit ressembler à un mot du nom.
+    Sinon « sakura optimizer » finirait sur « sakura lumieres » grâce au seul mot commun."""
+    words = name.split()
+    return all(
+        any(difflib.SequenceMatcher(None, word, other).ratio() >= 0.75 for other in words)
+        for word in wanted.split() if len(word) >= 4
+    )
+
+
 def _matches(query: str, entries: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
     wanted = _normalise(query)
     named = [(entry, _normalise(alias)) for entry in entries for alias in _entry_names(entry)]
@@ -138,7 +148,7 @@ def _matches(query: str, entries: list[dict[str, Any]]) -> tuple[list[dict[str, 
         ))
         length_ratio = min(len(wanted), len(close[0])) / max(len(wanted), len(close[0]))
         # les mots courts (« obs ») ressemblent vite à autre chose (« osu ») : on exige plus
-        if best >= (0.62 if len(wanted) >= 6 else 0.8) and length_ratio >= 0.7:
+        if best >= (0.62 if len(wanted) >= 6 else 0.8) and length_ratio >= 0.7                 and _words_match(wanted, close[0]):
             return matches, []
     return [], [by_name[name]["name"] for name in close] or [entry["name"] for entry, _ in named[:5]]
 
@@ -170,6 +180,11 @@ def _default_start_menu_roots() -> list[Path]:
         roots.append(Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs")
     if program_data:
         roots.append(Path(program_data) / "Microsoft" / "Windows" / "Start Menu" / "Programs")
+    # raccourcis du Bureau (ex. Sakura Optimizer), lus sans descendre dans les sous-dossiers
+    public = os.environ.get("PUBLIC")
+    for desktop in (Path.home() / "Desktop", Path.home() / "OneDrive" / "Desktop", Path(public) / "Desktop" if public else None):
+        if desktop is not None and desktop not in roots:
+            roots.append(desktop)
     return roots
 
 
@@ -416,7 +431,8 @@ class ToolRegistry:
         entries: list[dict[str, Any]] = []
         for root in self._start_menu_roots():
             try:
-                shortcuts = sorted(root.rglob("*.lnk"), key=lambda path: _normalise(path.stem)) if root.exists() else []
+                found = root.glob("*.lnk") if root.name.lower() == "desktop" else root.rglob("*.lnk")
+                shortcuts = sorted(found, key=lambda path: _normalise(path.stem)) if root.exists() else []
             except OSError:
                 shortcuts = []
             for shortcut in shortcuts:

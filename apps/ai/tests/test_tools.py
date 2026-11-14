@@ -193,3 +193,18 @@ def test_close_app_refuse_alias_explorateur():
     assert result["ok"] is False
     assert explorer.terminated is False
 
+
+
+def test_un_seul_mot_commun_ne_suffit_pas(tmp_path):
+    for name in ("Sakura Lumières", "Sakura Optimizer"):
+        (tmp_path / f"{name}.lnk").write_bytes(b"faux raccourci")
+    launched = []
+    registry = ToolRegistry(
+        config_loader=lambda: {"apps": [], "games": []},
+        start_menu_roots=lambda: [tmp_path],
+        launcher_start=lambda launch, browser: launched.append(launch),
+    )
+
+    assert registry.run("open_app", {"name": "sakura optimiseur"})["name"] == "Sakura Optimizer"
+    assert registry.run("open_app", {"name": "sakura robot"})["ok"] is False
+    assert launched == [{"file": str(tmp_path / "Sakura Optimizer.lnk")}]
