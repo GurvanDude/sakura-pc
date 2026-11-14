@@ -23,6 +23,138 @@
   }), shell.firstChild);
   Sakura.details($('#details-button'), $('#details'));
   Sakura.init();
+  let appBridge = null;
+  let cleanupCategories = [];
+
+  Sakura.tabs($('#optimizer-tabs'), tab => {
+    if (tab === 'actions') refreshActions();
+  });
+
+  function formatSize(bytes) {
+    const units = ['octet', 'Ko', 'Mo', 'Go', 'To'];
+    let value = Math.max(0, Number(bytes) || 0);
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+    const digits = unit === 0 ? 0 : 1;
+    const label = unit === 0 && Math.round(value) !== 1 ? 'octets' : units[unit];
+    return value.toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ' ' + label;
+  }
+
+  function selectedCleanup() {
+    return [...$('#cleanup-list').querySelectorAll('input:checked')].map(box => box.value);
+  }
+
+  function updateCleanupTotal() {
+    const selected = new Set(selectedCleanup());
+    const total = cleanupCategories.reduce((sum, item) => sum + (selected.has(item.id) ? item.taille : 0), 0);
+    $('#cleanup-total-value').textContent = formatSize(total);
+    $('#cleanup-apply').textContent = 'Libérer ' + formatSize(total);
+    $('#cleanup-apply').disabled = selected.size === 0;
+    return total;
+  }
+
+  function createCleanupRow(category) {
+    const row = make('label', 'sk-row cleanup-row');
+    const box = make('input', 'cleanup-checkbox');
+    box.type = 'checkbox';
+    box.value = category.id;
+    box.checked = Boolean(category.cochee) && !category.desactivee;
+    box.disabled = Boolean(category.desactivee);
+    const main = make('div', 'sk-row-main');
+    const title = make('div', 'sk-row-title');
+    const explanation = make('div', 'sk-row-sub');
+    const risk = make('small', 'cleanup-risk');
+    title.textContent = category.titre;
+    explanation.textContent = category.desactivee ? category.raison : category.explication;
+    risk.textContent = category.risque + ' · ' + Number(category.nombre).toLocaleString('fr-FR') + ' élément(s).';
+    main.append(title, explanation, risk);
+    const size = make('strong', 'sk-row-end cleanup-size');
+    size.textContent = formatSize(category.taille);
+    row.append(box, main, size);
+    return row;
+  }
+
+  function renderCleanup(payload) {
+    cleanupCategories = Array.isArray(payload.categories) ? payload.categories : [];
+    $('#cleanup-list').replaceChildren(...cleanupCategories.map(createCleanupRow));
+    $('#cleanup-list').hidden = false;
+    $('#cleanup-total').hidden = false;
+    $('#cleanup-apply').hidden = false;
+    $('#cleanup-status').textContent = cleanupCategories.length
+      ? 'Aperçu terminé : rien n’a encore été touché.' : 'Je n’ai rien trouvé à ranger.';
+    updateCleanupTotal();
+  }
+
+  async function scanCleanup() {
+    $('#cleanup-status').textContent = 'Je regarde…';
+    $('#cleanup-scan').disabled = true;
+    try {
+      const payload = appBridge ? await appBridge.cleanup_scan()
+        : await fetch('/api/cleanup/scan', { cache: 'no-store' }).then(response => response.json());
+      renderCleanup(payload);
+    } catch (_) {
+      $('#cleanup-status').textContent = 'Je n’arrive pas à regarder les fichiers pour le moment.';
+    } finally {
+      $('#cleanup-scan').disabled = false;
+    }
+  }
+
+  async function refreshActions() {
+    try {
+      const payload = appBridge ? await appBridge.actions()
+        : await fetch('/api/actions', { cache: 'no-store' }).then(response => response.json());
+      const rows = Array.isArray(payload.actions) ? payload.actions : [];
+      const list = $('#actions-list');
+      if (!rows.length) {
+        const empty = make('p', 'sk-sub');
+        empty.textContent = 'Aucune action pour le moment.';
+        list.replaceChildren(empty);
+      } else {
+        list.replaceChildren(...rows.map(action => {
+          const row = make('article', 'sk-row action-row');
+          const main = make('div', 'sk-row-main');
+          const title = make('div', 'sk-row-title');
+          const detail = make('div', 'sk-row-sub');
+          title.textContent = action.resume || action['résumé'] || 'Action';
+          const date = new Date(action.date);
+          detail.textContent = (Number.isNaN(date.getTime()) ? action.date : date.toLocaleString('fr-FR'))
+            + ' · ' + formatSize(action.place_gagnee || action['place gagnée']) + ' · ' + (action.etat || action['état']);
+          main.append(title, detail);
+          row.append(main);
+          if (action.annulable && (action.etat || action['état']) === 'fait') {
+            const button = make('button', 'sk-btn sk-btn--secondary sk-btn--small');
+            button.type = 'button';
+            button.textContent = 'Annuler';
+            button.addEventListener('click', () => undoAction(action.id, title.textContent));
+            row.append(button);
+          }
+          return row;
+        }));
+      }
+      const quarantine = payload.quarantaine || {};
+      $('#quarantine-size').textContent = 'Quarantaine : ' + formatSize(quarantine.taille)
+        + (quarantine.disque ? ' sur ' + quarantine.disque : '');
+      $('#empty-quarantine').disabled = !(Number(quarantine.taille) > 0);
+    } catch (_) {
+      const message = make('p', 'sk-sub');
+      message.textContent = 'Je n’arrive pas à lire le journal pour le moment.';
+      $('#actions-list').replaceChildren(message);
+    }
+  }
+
+  async function undoAction(identifier, summary) {
+    if (!appBridge) return;
+    const confirmed = await Sakura.confirm({
+      title: 'Remettre ces fichiers ?',
+      text: summary + ' sera annulé et les fichiers retourneront à leur place.',
+      yes: 'Oui, remets-les', no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    const result = await appBridge.undo(identifier);
+    Sakura.toast(result.ok ? Number(result.restaures).toLocaleString('fr-FR') + ' fichier(s) remis en place.'
+      : (result.erreur || 'Je n’ai pas pu annuler cette action.'), { kind: result.ok ? 'ok' : 'warn' });
+    refreshActions();
+  }
 
   const verdicts = {
     ok: { emoji: '😊', tag: '調子いい · TOUT VA BIEN' },
@@ -369,6 +501,7 @@
 
   async function start() {
     const bridge = await waitForApi();
+    appBridge = bridge;
     if (bridge) {
       try { Sakura.setTheme(await bridge.get_theme()); } catch (_) { /* thème du kit conservé */ }
       Sakura.onThemeChange(theme => { bridge.set_theme(theme); });
@@ -450,13 +583,51 @@
   });
 
   $('#free-space').addEventListener('click', async () => {
-    if (!api()) return;
+    const tab = $('#optimizer-tabs').querySelector('[data-tab="cleanup"]');
+    if (tab) tab.click();
+  });
+
+  $('#cleanup-scan').addEventListener('click', scanCleanup);
+  $('#cleanup-list').addEventListener('change', updateCleanupTotal);
+  $('#cleanup-apply').addEventListener('click', async () => {
+    if (!appBridge) return;
+    const identifiers = selectedCleanup();
+    const total = updateCleanupTotal();
+    const recycle = identifiers.includes('corbeille');
+    const confirmed = await Sakura.confirm({
+      title: 'Libérer ' + formatSize(total) + ' ?',
+      text: 'Les autres fichiers resteront 7 jours en quarantaine.'
+        + (recycle ? ' La corbeille sera vidée pour de bon.' : ''),
+      yes: 'Oui, libère ' + formatSize(total), no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    $('#cleanup-status').textContent = 'Je fais le ménage…';
+    $('#cleanup-apply').disabled = true;
     try {
-      await api().free_space();
-      Sakura.toast("J'ouvre les réglages de stockage de Windows.");
+      const result = await appBridge.cleanup_apply(identifiers);
+      const message = formatSize(result.place_gagnee) + ' libérés, '
+        + Number(result.ignores).toLocaleString('fr-FR') + ' fichiers en cours d’utilisation laissés en place';
+      Sakura.toast(message + '.', { kind: result.erreur_corbeille ? 'warn' : 'ok' });
+      await scanCleanup();
+      refreshActions();
     } catch (_) {
-      Sakura.toast("Je n'arrive pas à ouvrir les réglages de stockage.", { kind: 'warn' });
+      Sakura.toast('Le ménage n’a pas pu se terminer.', { kind: 'warn' });
+    } finally {
+      $('#cleanup-apply').disabled = false;
     }
+  });
+
+  $('#empty-quarantine').addEventListener('click', async () => {
+    if (!appBridge) return;
+    const confirmed = await Sakura.confirm({
+      title: 'Vider la quarantaine maintenant ?',
+      text: 'C’est définitif : ces fichiers ne pourront plus être remis.',
+      yes: 'Oui, vide pour de bon', no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    const result = await appBridge.empty_quarantine();
+    Sakura.toast(formatSize(result.octets) + ' supprimés pour de bon.');
+    refreshActions();
   });
 
   start();

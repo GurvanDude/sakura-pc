@@ -29,3 +29,17 @@ def test_commande_diagnose_accepte_minutes_et_json():
     assert args.command == 'diagnose'
     assert args.minutes == 15
     assert args.json is True
+
+
+def test_commandes_menage_actions_et_annulation():
+    parser = build_parser()
+
+    preview = parser.parse_args(['cleanup', '--preview', '--json'])
+    apply = parser.parse_args(['cleanup', '--apply', 'temp,plantages', '--json'])
+    actions = parser.parse_args(['actions', '--json'])
+    undo = parser.parse_args(['undo', 'abc123', '--json'])
+
+    assert preview.preview is True and preview.json is True
+    assert apply.apply == 'temp,plantages' and apply.json is True
+    assert actions.command == 'actions' and actions.json is True
+    assert undo.command == 'undo' and undo.id == 'abc123' and undo.json is True

@@ -12,6 +12,7 @@ import re
 import socketserver
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -24,6 +25,8 @@ from sakura_opt.history import History
 from sakura_opt.history_mutex import acquire_history_mutex
 from sakura_opt.names import add_friendly_names
 from sakura_opt.sensors import Sampler
+from sakura_opt.actions import ActionManager
+from sakura_opt.cleanup import Cleanup
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
@@ -141,6 +144,8 @@ class Api:
         config_path: Path | None = None,
         opener: Callable[[str], Any] | None = None,
         history: History | None = None,
+        cleanup: Cleanup | None = None,
+        action_manager: ActionManager | None = None,
     ) -> None:
         self._monitor = monitor
         self._window: Any | None = None
@@ -149,6 +154,9 @@ class Api:
         self._config_path = Path(config_path) if config_path is not None else paths.CONFIG
         self._opener = opener or _open_windows_settings
         self._history = history or History()
+        self._actions = action_manager or ActionManager()
+        self._cleanup = cleanup or Cleanup(self._actions)
+        self._workers = ThreadPoolExecutor(max_workers=2, thread_name_prefix="optimizer-actions")
         self._preferences_lock = threading.Lock()
 
     def _preferences(self) -> dict[str, Any]:
@@ -238,6 +246,29 @@ class Api:
         """Ouvre les réglages Windows sans supprimer le moindre fichier."""
         self._opener("ms-settings:storagesense")
 
+    def cleanup_scan(self) -> dict[str, Any]:
+        """L'analyse du disque se fait hors du fil de l'interface."""
+        return self._workers.submit(self._cleanup.scan).result()
+
+    def cleanup_apply(self, identifiers: list[str]) -> dict[str, Any]:
+        """Applique uniquement les catégories confirmées dans l'interface."""
+        return self._workers.submit(self._cleanup.apply, identifiers).result()
+
+    def actions(self) -> dict[str, Any]:
+        return {
+            "actions": self._actions.list_actions(),
+            "quarantaine": self._actions.quarantine_info(),
+        }
+
+    def undo(self, identifier: str) -> dict[str, Any]:
+        return self._workers.submit(self._actions.undo, identifier).result()
+
+    def purge_quarantine(self) -> dict[str, Any]:
+        return self._workers.submit(self._actions.purge).result()
+
+    def empty_quarantine(self) -> dict[str, Any]:
+        return self._workers.submit(self._actions.empty).result()
+
 
 def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
     routes = {
@@ -281,6 +312,16 @@ def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
                 self._headers(200, "application/json; charset=utf-8", len(payload))
                 self.wfile.write(payload)
                 return
+            if request_path == "/api/cleanup/scan":
+                payload = json.dumps(api.cleanup_scan(), ensure_ascii=False).encode("utf-8")
+                self._headers(200, "application/json; charset=utf-8", len(payload))
+                self.wfile.write(payload)
+                return
+            if request_path == "/api/actions":
+                payload = json.dumps(api.actions(), ensure_ascii=False).encode("utf-8")
+                self._headers(200, "application/json; charset=utf-8", len(payload))
+                self.wfile.write(payload)
+                return
             file_path = routes.get(request_path)
             if file_path is None:
                 self.send_error(404)
@@ -320,6 +361,7 @@ def run(debug: bool = False) -> None:
     import clr  # noqa: F401
     monitor = Monitor()
     api = Api(monitor)
+    api._workers.submit(api._actions.purge)
     server, port = _serve(api)
     window = webview.create_window(
         "Sakura Optimizer", f"http://127.0.0.1:{port}/index.html", js_api=api,
@@ -337,3 +379,4 @@ def run(debug: bool = False) -> None:
         monitor.close()
         server.shutdown()
         server.server_close()
+        api._workers.shutdown(wait=False, cancel_futures=True)

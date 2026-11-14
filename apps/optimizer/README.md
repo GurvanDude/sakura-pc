@@ -77,6 +77,26 @@ python optimizer.py diagnose --minutes 5 --json
 
 La première commande donne une explication simple. La seconde renvoie le résultat complet au format JSON.
 
+## Ménage
+
+L'onglet **Ménage** commence toujours par un aperçu : il indique exactement la place et le nombre d'éléments,
+sans rien modifier. Les fichiers confirmés sont déplacés pendant 7 jours dans une quarantaine sur le disque fixe
+hors C: qui a le plus de place ; s'il n'y en a pas, elle reste dans le dossier utilisateur Sakura PC. L'onglet
+**Ce que j'ai fait** permet de les remettre ou de vider définitivement la quarantaine.
+
+La corbeille est différente : Windows la vide pour de bon, uniquement après une confirmation qui le dit clairement.
+Opera GX doit être fermé avant de vider son cache. Tout fonctionne avec un compte Windows normal, sans droits
+administrateur.
+
+Commandes prévues pour Sakura AI :
+
+```powershell
+python optimizer.py cleanup --preview --json
+python optimizer.py cleanup --apply temp,plantages --json
+python optimizer.py actions --json
+python optimizer.py undo <id> --json
+```
+
 ## Outil technique
 
 Le moniteur terminal reste disponible pour le diagnostic technique :

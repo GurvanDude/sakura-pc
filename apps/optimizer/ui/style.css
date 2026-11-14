@@ -2,6 +2,68 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.optimizer-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin-bottom: 22px;
+  backdrop-filter: blur(12px);
+}
+
+.cleanup-page,
+.actions-page {
+  max-width: 900px;
+}
+
+.cleanup-scan-actions {
+  align-items: center;
+  margin-top: 20px;
+}
+
+.cleanup-list,
+.actions-list {
+  margin-top: 18px;
+  min-width: 0;
+}
+
+.cleanup-row { cursor: pointer; }
+
+.cleanup-checkbox {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--sk-accent);
+}
+
+.cleanup-risk {
+  display: block;
+  margin-top: 4px;
+  color: var(--sk-muted);
+  line-height: 1.35;
+}
+
+.cleanup-size {
+  flex: 0 0 auto;
+  color: var(--sk-text);
+  font-size: 14px;
+}
+
+.cleanup-total,
+.quarantine-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.cleanup-total strong {
+  font-family: var(--sk-font-title);
+  font-size: clamp(24px, 5vw, 38px);
+}
+
+.action-row .sk-row-main { min-width: 0; }
+
 .sk-stat {
   min-width: 0;
 }
@@ -296,6 +358,14 @@
 }
 
 @media (max-width: 760px) {
+  .sk-main {
+    width: 100%;
+    max-width: none;
+  }
+
+  .optimizer-tabs { overflow-x: auto; }
+  .optimizer-tabs .sk-tab { flex: 0 0 auto; }
+
   .diagnosis-verdict .sk-verdict,
   .diagnosis-finding-head,
   .diagnosis-evidence-row {
@@ -336,4 +406,12 @@
     flex-basis: 100%;
     text-align: left;
   }
+
+  .cleanup-row,
+  .action-row,
+  .quarantine-footer { align-items: flex-start; }
+
+  .cleanup-row .sk-row-main { flex-basis: calc(100% - 42px); }
+
+  .quarantine-footer { flex-direction: column; }
 }

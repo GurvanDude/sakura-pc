@@ -41,7 +41,27 @@ def build_parser():
         '--minutes', type=float, default=5, help='Période à analyser, en minutes (5 par défaut).'
     )
     diagnostic.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
+    cleanup = subparsers.add_parser('cleanup', help='Regarde ou range les fichiers temporaires.')
+    cleanup_mode = cleanup.add_mutually_exclusive_group(required=True)
+    cleanup_mode.add_argument('--preview', action='store_true', help='Aperçu sans rien toucher.')
+    cleanup_mode.add_argument('--apply', metavar='IDS', help='Catégories à nettoyer, séparées par des virgules.')
+    cleanup.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
+    action_list = subparsers.add_parser('actions', help='Affiche le journal des actions.')
+    action_list.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
+    undo = subparsers.add_parser('undo', help='Annule une action encore en quarantaine.')
+    undo.add_argument('id', help="Identifiant de l'action.")
+    undo.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
     return parser
+
+
+def _size(value):
+    units = ('octets', 'Ko', 'Mo', 'Go', 'To')
+    number = float(value or 0)
+    for unit in units:
+        if number < 1024 or unit == units[-1]:
+            digits = 0 if unit == 'octets' else 1
+            return f"{number:.{digits}f}".replace('.', ',') + f' {unit}'
+        number /= 1024
 
 
 def _print_diagnosis(result):
@@ -100,6 +120,44 @@ def main():
         else:
             _print_diagnosis(result)
         return 0
+    if args.command == 'cleanup':
+        from sakura_opt.cleanup import apply, scan
+        result = scan() if args.preview else apply(
+            [value.strip() for value in args.apply.split(',') if value.strip()]
+        )
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        elif args.preview:
+            print('Aperçu — rien n’a été touché :')
+            for category in result['categories']:
+                state = f" — {category['raison']}" if category['desactivee'] else ''
+                print(f"- {category['titre']} : {_size(category['taille'])}, "
+                      f"{category['nombre']} fichier(s){state}")
+        else:
+            print(f"{_size(result['place_gagnee'])} libérés ; "
+                  f"{result['ignores']} fichier(s) en cours d’utilisation laissé(s) en place.")
+        return 0
+    if args.command == 'actions':
+        from sakura_opt.actions import actions
+        result = actions()
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        elif not result:
+            print("Aucune action dans le journal.")
+        else:
+            for action in result:
+                print(f"{action['id']} · {action['date']} · {action['resume']} · "
+                      f"{_size(action['place_gagnee'])} · {action['etat']}")
+        return 0
+    if args.command == 'undo':
+        from sakura_opt.actions import undo
+        result = undo(args.id)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(f"{result.get('restaures', 0)} fichier(s) remis en place." if result.get('ok')
+                  else result.get('erreur', "L'action n'a pas pu être annulée."))
+        return 0 if result.get('ok') else 1
     return 0
 
 

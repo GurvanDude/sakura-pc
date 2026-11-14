@@ -12,6 +12,12 @@
 <body>
   <div class="sk-window" id="optimizer-window" data-torii="faint">
     <main class="sk-main">
+      <nav class="sk-tabs optimizer-tabs" id="optimizer-tabs" role="tablist" aria-label="Pages de l'Optimizer">
+        <button class="sk-tab is-active" type="button" role="tab" data-tab="pc">Mon PC</button>
+        <button class="sk-tab" type="button" role="tab" data-tab="cleanup">Ménage</button>
+        <button class="sk-tab" type="button" role="tab" data-tab="actions">Ce que j'ai fait</button>
+      </nav>
+      <div data-panel="pc">
       <section class="sk-section">
         <div class="sk-verdict" id="verdict">
           <div class="sk-mood" id="verdict-mood" aria-hidden="true">😊</div>
@@ -116,6 +122,37 @@
           <div id="sensor-details"></div>
         </div>
       </section>
+      </div>
+
+      <div data-panel="cleanup" hidden>
+        <section class="sk-section cleanup-page">
+          <h1 class="sk-title">Faire de la place</h1>
+          <p class="sk-sub">Je range dans une quarantaine sur le disque D pendant 7 jours : tu peux tout remettre.</p>
+          <div class="sk-actions cleanup-scan-actions">
+            <button class="sk-btn sk-btn--primary" id="cleanup-scan" type="button">Regarder ce qu'on peut libérer</button>
+            <span class="sk-sub" id="cleanup-status" aria-live="polite"></span>
+          </div>
+          <div class="sk-card sk-stack cleanup-list" id="cleanup-list" hidden></div>
+          <div class="cleanup-total" id="cleanup-total" hidden>
+            <span>Total coché</span><strong id="cleanup-total-value">0 octet</strong>
+          </div>
+          <button class="sk-btn sk-btn--primary" id="cleanup-apply" type="button" hidden>Libérer 0 octet</button>
+        </section>
+      </div>
+
+      <div data-panel="actions" hidden>
+        <section class="sk-section actions-page">
+          <h1 class="sk-title">Ce que j'ai fait</h1>
+          <p class="sk-sub">Tu peux remettre ce qui est encore dans la quarantaine.</p>
+          <div class="sk-card sk-stack actions-list" id="actions-list">
+            <p class="sk-sub">Je regarde le journal…</p>
+          </div>
+          <div class="quarantine-footer">
+            <strong id="quarantine-size">Quarantaine : 0 octet</strong>
+            <button class="sk-btn sk-btn--danger" id="empty-quarantine" type="button">Vider maintenant</button>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
   <script src="/app.js"></script>
