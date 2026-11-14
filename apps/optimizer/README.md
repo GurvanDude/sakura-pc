@@ -38,6 +38,29 @@ Pour le retirer, ouvre de nouveau PowerShell en administrateur et colle :
 powershell -ExecutionPolicy Bypass -File apps/optimizer/tools/install_temps_task.ps1 -Uninstall
 ```
 
+## Historique
+
+Sakura garde les mesures des 7 derniers jours dans `%APPDATA%\SakuraPC\history.db`. Elles restent uniquement
+sur le PC. Tant que la fenêtre est ouverte, elle complète elle-même l'historique ; pour continuer quand elle est
+fermée :
+
+1. Ouvre un PowerShell **normal** (surtout pas en administrateur).
+2. Depuis la racine du dépôt, colle :
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File apps/optimizer/tools/install_history_task.ps1
+   ```
+
+3. Réponds **O**. L'enregistreur démarre tout de suite, puis à chaque ouverture de session.
+
+Pour le désinstaller, ouvre aussi un PowerShell normal et colle :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File apps/optimizer/tools/install_history_task.ps1 -Uninstall
+```
+
+La désinstallation arrête l'enregistreur et retire sa tâche planifiée, sans effacer l'historique déjà enregistré.
+
 ## Outil technique
 
 Le moniteur terminal reste disponible pour le diagnostic technique :

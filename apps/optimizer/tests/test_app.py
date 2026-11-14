@@ -8,12 +8,26 @@ from urllib.request import urlopen
 
 import pytest
 
-from app import Api, _serve
+from app import Api, Monitor, _serve
 
 
 class FakeMonitor:
     def get(self):
         return None
+
+
+class FakeHistory:
+    def __init__(self):
+        self.recorded = []
+
+    def record(self, status, temps=None):
+        self.recorded.append((status, temps))
+
+    def query(self, _seconds):
+        return [{"t": 100, "cpu": 20, "ram": 40, "gpu": 10, "cpu_temp": 60}]
+
+    def summary(self, _seconds):
+        return {"duration_s": 600, "top_app": "Jeu", "avg_cpu": 20}
 
 
 def test_free_space_utilise_l_ouvreur_injecte(tmp_path):
@@ -35,6 +49,40 @@ def test_theme_est_memorise_dans_le_fichier_utilisateur(tmp_path):
     assert json.loads(theme_path.read_text(encoding="utf-8")) == {"theme": "night"}
 
 
+def test_periode_historique_partage_le_fichier_du_theme(tmp_path):
+    theme_path = tmp_path / "optimizer.json"
+    api = Api(FakeMonitor(), theme_path=theme_path, config_path=tmp_path / "missing.json")
+
+    api.set_theme("night")
+    assert api.set_history_period("6h") == "6h"
+
+    assert api.get_history_period() == "6h"
+    assert json.loads(theme_path.read_text(encoding="utf-8")) == {
+        "theme": "night", "history_period": "6h",
+    }
+
+
+def test_get_history_renvoie_les_series_et_la_vue(tmp_path):
+    api = Api(
+        FakeMonitor(), theme_path=tmp_path / "theme.json", history=FakeHistory()
+    )
+
+    payload = api.get_history("1h")
+
+    assert payload["series"][0]["cpu"] == 20
+    assert "view" in payload
+    assert "Jeu" in payload["view"]["sentence"]
+
+
+def test_fenetre_n_enregistre_pas_si_mutex_deja_pris():
+    history = FakeHistory()
+    monitor = Monitor(sampler=object(), history=history, mutex_factory=lambda: None, start=False)
+
+    monitor._record_history({"temps": {"cpu": 60}}, now=0)
+
+    assert history.recorded == []
+
+
 def test_theme_par_defaut_suit_les_horaires_du_launcher(tmp_path):
     config_path = tmp_path / "config.json"
     config_path.write_text(
@@ -52,7 +100,7 @@ def test_theme_par_defaut_suit_les_horaires_du_launcher(tmp_path):
 
 @pytest.fixture
 def local_server(tmp_path):
-    api = Api(FakeMonitor(), theme_path=tmp_path / "theme.json")
+    api = Api(FakeMonitor(), theme_path=tmp_path / "theme.json", history=FakeHistory())
     server, port = _serve(api)
     try:
         yield f"http://127.0.0.1:{port}"
@@ -67,6 +115,9 @@ def test_server_sert_le_kit_et_la_vue_json(local_server):
     with urlopen(local_server + "/api/view") as response:
         payload = json.load(response)
     assert "view" in payload
+    with urlopen(local_server + "/api/history?period=1h") as response:
+        history = json.load(response)
+    assert set(history) == {"series", "view"}
 
 
 @pytest.mark.parametrize(

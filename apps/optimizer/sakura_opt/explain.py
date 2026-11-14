@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from .names import group_apps
@@ -81,6 +82,77 @@ def _temperature_hint(value: float, warm: float, hot: float) -> str:
     if value <= hot:
         return "chaud, mais ça va"
     return "très chaud"
+
+
+def _history_value(value: Any, unit: str) -> str:
+    number = _number(value)
+    return f"{_measure(number)} {unit}" if number is not None else "—"
+
+
+def _history_time(value: Any) -> str:
+    timestamp = _number(value)
+    if timestamp is None:
+        return "—"
+    try:
+        return datetime.fromtimestamp(timestamp).strftime("%H:%M")
+    except (OSError, OverflowError, ValueError):
+        return "—"
+
+
+def _history_usage_hint(value: Any, low: float, high: float) -> str:
+    number = _number(value)
+    if number is None:
+        return "mesure indisponible"
+    if number < low:
+        return "tranquille"
+    if number <= high:
+        return "bien occupé"
+    return "à fond"
+
+
+def history_view(
+    series: list[dict[str, Any]] | None,
+    summary: dict[str, Any] | None,
+    period_label: str,
+) -> dict[str, Any]:
+    """Transforme les souvenirs techniques en bilan simple et chiffré."""
+    series = series if isinstance(series, list) else []
+    summary = summary if isinstance(summary, dict) else {}
+    if _number(summary.get("duration_s")) is None or (_number(summary.get("duration_s")) or 0) < 120:
+        return {
+            "sentence": "Je n'ai pas encore assez de souvenirs, reviens dans quelques minutes.",
+            "facts": [],
+        }
+
+    cpu_avg = _number(summary.get("avg_cpu"))
+    cpu_temp = _number(summary.get("max_cpu_temp"))
+    app = str(summary.get("top_app") or "tes programmes")
+    pieces = [f"Sur {period_label}, ton PC a surtout servi à {app}."]
+    if cpu_avg is not None:
+        pieces.append(f"Le processeur a tourné en moyenne à {_measure(cpu_avg)} %.")
+    if cpu_temp is not None:
+        pieces.append(
+            f"Il a chauffé au plus à {_measure(cpu_temp)} °C vers "
+            f"{_history_time(summary.get('max_cpu_temp_t'))} "
+            f"({_temperature_hint(cpu_temp, 70, 85)})."
+        )
+
+    facts = [
+        _figure("Processeur moyen", _history_value(summary.get("avg_cpu"), "%"), _history_usage_hint(summary.get("avg_cpu"), 35, 75)),
+        _figure("Processeur au maximum", _history_value(summary.get("max_cpu"), "%"), f"{_history_usage_hint(summary.get('max_cpu'), 35, 75)} · vers {_history_time(summary.get('max_cpu_t'))}"),
+        _figure("Carte graphique au maximum", _history_value(summary.get("max_gpu"), "%"), f"{_history_usage_hint(summary.get('max_gpu'), 35, 75)} · vers {_history_time(summary.get('max_gpu_t'))}"),
+    ]
+    for label, field in (("Température processeur", "cpu_temp"), ("Température carte graphique", "gpu_temp")):
+        value = _number(summary.get(f"max_{field}"))
+        hint = "mesure indisponible"
+        if value is not None:
+            hint = f"{_temperature_hint(value, 70, 85)} · vers {_history_time(summary.get(f'max_{field}_t'))}"
+        facts.append(_figure(label, _history_value(value, "°C"), hint))
+    facts.append(_figure(
+        "Mémoire au maximum", _history_value(summary.get("max_ram"), "%"),
+        f"{_history_usage_hint(summary.get('max_ram'), 60, 85)} · vers {_history_time(summary.get('max_ram_t'))}",
+    ))
+    return {"sentence": " ".join(pieces), "facts": facts}
 
 
 def _disk_hint(percent: float) -> str:

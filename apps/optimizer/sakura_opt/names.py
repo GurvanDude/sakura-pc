@@ -18,6 +18,25 @@ _WINDOWS_PROCESSES = {
 _PATH_NAMES: dict[str, str] = {}
 
 
+def add_friendly_names(status: dict[str, Any]) -> None:
+    """Ajoute les noms lisibles aux processus, hors du fil d'affichage."""
+    known: dict[int, str] = {}
+    for key in ("top_cpu", "top_ram"):
+        rows = status.get(key)
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            try:
+                pid = int(row["pid"])
+                if pid not in known:
+                    known[pid] = friendly_name(pid, str(row.get("name") or "Programme"))
+                row["friendly_name"] = known[pid]
+            except (KeyError, TypeError, ValueError):
+                continue
+
+
 def _plain_name(exe_name: str | None) -> str:
     name = Path(exe_name or "Programme").name
     return name[:-4] if name.lower().endswith(".exe") else name

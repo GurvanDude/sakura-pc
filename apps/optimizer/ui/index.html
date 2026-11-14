@@ -48,6 +48,38 @@
         </div>
       </section>
 
+      <section class="sk-section history-section" id="history-section">
+        <div class="history-head">
+          <h2 class="sk-section-title">Ce qui s'est passé</h2>
+          <div class="sk-seg" id="history-periods" aria-label="Période de l'historique">
+            <button type="button" data-period="15m">15 min</button>
+            <button type="button" class="is-active" data-period="1h">1 h</button>
+            <button type="button" data-period="6h">6 h</button>
+            <button type="button" data-period="24h">24 h</button>
+            <button type="button" data-period="7j">7 jours</button>
+          </div>
+        </div>
+        <p class="history-sentence" id="history-sentence">Je rassemble les souvenirs de ton PC…</p>
+        <div class="history-facts" id="history-facts"></div>
+        <div class="history-charts" id="history-charts">
+          <article class="sk-card history-chart" data-chart="activity">
+            <h3>Processeur et carte graphique</h3>
+            <div class="chart-legend"><span class="legend-cpu">Processeur</span><span class="legend-gpu">Carte graphique</span></div>
+            <div class="chart-wrap"><svg viewBox="0 0 620 190" role="img" aria-label="Activité du processeur et de la carte graphique"></svg><div class="chart-tooltip" hidden></div></div>
+          </article>
+          <article class="sk-card history-chart" data-chart="temperature">
+            <h3>Températures</h3>
+            <div class="chart-legend"><span class="legend-cpu">Processeur</span><span class="legend-gpu">Carte graphique</span></div>
+            <div class="chart-wrap"><svg viewBox="0 0 620 190" role="img" aria-label="Températures du processeur et de la carte graphique"></svg><div class="chart-tooltip" hidden></div></div>
+          </article>
+          <article class="sk-card history-chart" data-chart="memory">
+            <h3>Mémoire</h3>
+            <div class="chart-legend"><span class="legend-ram">Mémoire utilisée</span></div>
+            <div class="chart-wrap"><svg viewBox="0 0 620 190" role="img" aria-label="Mémoire utilisée"></svg><div class="chart-tooltip" hidden></div></div>
+          </article>
+        </div>
+      </section>
+
       <section class="sk-section" id="tips-section" hidden>
         <h2 class="sk-section-title">Ce que tu peux faire</h2>
         <div class="sk-stack" id="tips"></div>
