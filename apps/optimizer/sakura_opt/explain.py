@@ -292,6 +292,6 @@ def explain(status: dict[str, Any] | None) -> dict[str, Any]:
             text = "C'est normal pendant un jeu ou un gros programme."
         verdict = {"mood": "busy", "emoji": "✨", "title": title, "text": text}
     else:
-        verdict = {"mood": "ok", "emoji": "🌸", "title": "Tout va bien 🌸", "text": "Ton PC est tranquille."}
+        verdict = {"mood": "ok", "emoji": "🌸", "title": "Tout va bien", "text": "Ton PC est tranquille."}
 
     return {"verdict": verdict, "cards": cards, "apps": apps, "tips": tips}

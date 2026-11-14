@@ -1,12 +1,72 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sakura Optimizer</title><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/style.css"></head>
-<body><main>
-  <header><img src="/logo.png" alt=""><div><h1>Sakura Optimizer</h1><p>Ton PC, expliqué simplement</p></div></header>
-  <section id="verdict" class="verdict ok"><span id="verdict-emoji">🌸</span><div><h2 id="verdict-title">Je regarde ton PC…</h2><p id="verdict-text">Ça prend juste un instant.</p></div></section>
-  <section id="cards" class="cards"></section>
-  <section class="panel"><h2>Qui utilise ton PC ?</h2><div id="apps" class="app-list"><p class="empty">Je regarde les programmes ouverts…</p></div></section>
-  <section id="tips-panel" class="panel tips" hidden><h2>Ce que tu peux faire</h2><div id="tips"></div></section>
-  <button id="details-button" class="details-button" type="button" aria-expanded="false">Afficher les détails</button>
-  <section id="details" class="details" hidden><h2>Détails techniques</h2><div id="card-details"></div><div id="sensor-details"></div></section>
-</main><script src="/app.js"></script></body></html>
+<html lang="fr" data-theme="day">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sakura Optimizer</title>
+  <link rel="stylesheet" href="/design/tokens.css">
+  <link rel="stylesheet" href="/design/ui/sakura.css">
+  <script src="/design/ui/sakura.js"></script>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="sk-window" id="optimizer-window" data-torii="faint">
+    <main class="sk-main">
+      <section class="sk-section">
+        <div class="sk-verdict" id="verdict">
+          <div class="sk-mood" id="verdict-mood" aria-hidden="true">😊</div>
+          <div>
+            <div class="sk-tag" id="verdict-tag">調子いい · TOUT VA BIEN</div>
+            <h1 class="sk-title" id="verdict-title">Je regarde ton PC…</h1>
+            <p class="sk-sub" id="verdict-text">Ça prend juste un instant.</p>
+          </div>
+        </div>
+        <div class="sk-grid optimizer-stats" id="stats" aria-label="État du PC">
+          <article class="sk-stat sk-stat--cpu" data-card="processeur">
+            <div class="sk-stat-label"></div><div class="sk-stat-value"></div>
+            <div class="sk-stat-state is-ok"></div><div class="stat-figures"></div>
+          </article>
+          <article class="sk-stat sk-stat--ram" data-card="memoire">
+            <div class="sk-stat-label"></div><div class="sk-stat-value"></div>
+            <div class="sk-stat-state is-ok"></div><div class="stat-figures"></div>
+          </article>
+          <article class="sk-stat sk-stat--gpu" data-card="graphique">
+            <div class="sk-stat-label"></div><div class="sk-stat-value"></div>
+            <div class="sk-stat-state is-ok"></div><div class="stat-figures"></div>
+          </article>
+          <article class="sk-stat sk-stat--disk" data-card="stockage">
+            <div class="sk-stat-label"></div><div class="sk-stat-value"></div>
+            <div class="sk-stat-state is-ok"></div><div class="stat-figures"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="sk-section">
+        <h2 class="sk-section-title">Qui utilise ton PC ?</h2>
+        <div class="sk-stack" id="apps">
+          <p class="sk-sub empty">Je regarde les programmes ouverts…</p>
+        </div>
+      </section>
+
+      <section class="sk-section" id="tips-section" hidden>
+        <h2 class="sk-section-title">Ce que tu peux faire</h2>
+        <div class="sk-stack" id="tips"></div>
+      </section>
+
+      <section class="sk-section">
+        <div class="sk-actions">
+          <button class="sk-btn sk-btn--primary" id="free-space" type="button">Faire de la place</button>
+          <button class="sk-btn sk-btn--secondary sk-details-toggle" id="details-button"
+                  data-label="Détails" type="button">Détails ▾</button>
+        </div>
+        <div class="sk-card sk-details technical-details" id="details" hidden>
+          <h2 class="sk-section-title">Détails techniques</h2>
+          <div id="card-details"></div>
+          <div id="sensor-details"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
