@@ -88,7 +88,7 @@ html[data-theme="night"] .sk-tab.is-active::after { bottom: -2px; height: 3px; b
 .sk-actions { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: 9px; }
 .sk-btn { border: 1.5px solid transparent; border-radius: 999px; padding: 8px 17px; background: transparent; cursor: pointer; font-weight: 800; transition: transform .16s, filter .16s, box-shadow .16s; }
 .sk-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }.sk-btn:active { transform: translateY(0); }
-.sk-btn:focus-visible, .sk-tab:focus-visible, .sk-winbtn:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--sk-accent) 48%, transparent); outline-offset: 2px; }
+.sk-btn:focus-visible, .sk-tab:focus-visible, .sk-winbtn:focus-visible, .sk-sidebar-item:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--sk-accent) 48%, transparent); outline-offset: 2px; }
 .sk-btn--primary { color: var(--sk-primary-text); background: var(--sk-primary); box-shadow: var(--sk-primary-shadow); }
 .sk-btn--secondary { color: var(--sk-secondary-text); background: var(--sk-secondary-bg); border-color: var(--sk-secondary-border); }
 html[data-theme="night"] .sk-btn--secondary { box-shadow: 0 0 8px -2px var(--sk-accent); }
@@ -145,6 +145,53 @@ html[data-theme="night"] .sk-msg--sakura .sk-bubble { border: 1px solid var(--sk
 @keyframes sk-bounce { to { transform: translateY(-5px); opacity: .55; } }
 .sk-composer { display: flex; gap: 8px; margin-top: 12px; }.sk-composer .sk-input { border-radius: 20px; }.sk-composer .sk-btn { flex: 0 0 38px; width: 38px; height: 38px; padding: 0; display: grid; place-items: center; }
 .sk-hint { margin: 5px 8px 0; color: var(--sk-muted); font-size: 11px; }
+
+/* Mini-graphes ---------------------------------------------------------- */
+.sk-chart { --sk-chart-color: var(--sk-accent-soft); --sk-chart-stroke: color-mix(in srgb, var(--sk-chart-color) 82%, var(--sk-text)); min-width: 0; padding: 14px; border: 1px solid var(--sk-glass-border); border-radius: var(--sk-radius); background: var(--sk-surface); overflow: hidden; }
+.sk-chart--cpu { --sk-chart-color: var(--sk-cpu); }.sk-chart--ram { --sk-chart-color: var(--sk-ram); }
+.sk-chart--gpu { --sk-chart-color: var(--sk-gpu); }.sk-chart--disk { --sk-chart-color: var(--sk-disk); }
+.sk-chart--accent { --sk-chart-color: var(--sk-accent); }
+.sk-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+.sk-chart-label { min-width: 0; color: var(--sk-label); font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.sk-chart-value { flex: 0 0 auto; color: var(--sk-text); font: 900 17px var(--font-title, "Zen Maru Gothic", "Yu Gothic UI", sans-serif); }
+.sk-chart-svg { display: block; width: 100%; height: var(--sk-chart-height, 104px); overflow: visible; }
+.sk-chart-guide { stroke: var(--sk-line); stroke-width: 1; opacity: .62; vector-effect: non-scaling-stroke; }
+.sk-chart-area { fill: var(--sk-chart-color); opacity: .18; }
+.sk-chart-line { fill: none; stroke: var(--sk-chart-stroke); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.sk-chart-point { fill: var(--sk-surface-strong); stroke: var(--sk-chart-stroke); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
+.sk-chart-empty { display: grid; place-items: center; height: var(--sk-chart-height, 104px); color: var(--sk-muted); font-size: 12px; text-align: center; }
+.sk-chart-empty[hidden], .sk-chart-svg[hidden] { display: none; }
+html[data-theme="night"] .sk-chart { --sk-chart-stroke: var(--sk-chart-color); background: color-mix(in srgb, var(--sk-surface) 82%, transparent); }
+html[data-theme="night"] .sk-chart-line, html[data-theme="night"] .sk-chart-point { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--sk-chart-color) 70%, transparent)); }
+html[data-theme="night"] .sk-chart-area { opacity: .13; }
+
+/* Colonne latérale ------------------------------------------------------ */
+.sk-layout { --sk-sidebar-width: 250px; position: relative; display: grid; grid-template-columns: var(--sk-sidebar-width) minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--sk-glass-border); border-radius: var(--sk-radius); background: color-mix(in srgb, var(--sk-surface) 50%, transparent); transition: grid-template-columns .2s ease; }
+.sk-sidebar { position: relative; z-index: 2; min-width: 0; padding: 12px 10px; overflow: auto; border-right: 1px solid var(--sk-line); background: color-mix(in srgb, var(--sk-surface-strong) 82%, transparent); backdrop-filter: blur(16px); transition: transform .2s ease, opacity .2s ease; }
+.sk-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; margin: 0 5px 10px; }
+.sk-sidebar-title { min-width: 0; margin: 0; font: 900 15px var(--font-title, "Zen Maru Gothic", "Yu Gothic UI", sans-serif); }
+.sk-sidebar-list { display: grid; gap: 5px; }
+.sk-sidebar-item { position: relative; min-width: 0; display: grid; gap: 2px; padding: 9px 10px 9px 13px; border: 1px solid transparent; border-radius: 10px; color: var(--sk-text); background: transparent; text-align: left; text-decoration: none; cursor: pointer; }
+.sk-sidebar-item:hover { background: color-mix(in srgb, var(--sk-accent-soft) 16%, transparent); }
+.sk-sidebar-item.is-active { border-color: color-mix(in srgb, var(--sk-accent-soft) 42%, transparent); background: color-mix(in srgb, var(--sk-accent-soft) 28%, var(--sk-surface-strong)); }
+.sk-sidebar-item.is-active::before { content: ""; position: absolute; left: 3px; top: 9px; bottom: 9px; width: 3px; border-radius: 999px; background: var(--sk-accent); }
+.sk-sidebar-item-title { min-width: 0; overflow: hidden; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+.sk-sidebar-item-sub { min-width: 0; overflow: hidden; color: var(--sk-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.sk-layout-main { min-width: 0; overflow: auto; }
+.sk-layout.is-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
+.sk-layout.is-collapsed .sk-sidebar { opacity: 0; transform: translateX(-100%); pointer-events: none; }
+.sk-sidebar-backdrop { display: none; }
+html[data-theme="night"] .sk-sidebar { border-right-color: color-mix(in srgb, var(--sk-accent) 38%, transparent); background: color-mix(in srgb, var(--sk-surface) 70%, transparent); box-shadow: 4px 0 20px -15px var(--sk-accent); }
+html[data-theme="night"] .sk-sidebar-item.is-active { border-color: color-mix(in srgb, var(--sk-accent) 68%, transparent); background: color-mix(in srgb, var(--sk-accent) 13%, transparent); box-shadow: inset 0 0 12px color-mix(in srgb, var(--sk-accent) 9%, transparent); }
+html[data-theme="night"] .sk-sidebar-item.is-active::before { box-shadow: 0 0 7px var(--sk-accent); }
+
+@media (max-width: 760px) {
+  .sk-layout, .sk-layout.is-collapsed { grid-template-columns: minmax(0, 1fr); }
+  .sk-sidebar, .sk-layout.is-collapsed .sk-sidebar { position: absolute; inset: 0 auto 0 0; width: min(var(--sk-sidebar-width), 86vw); opacity: 1; transform: translateX(-105%); pointer-events: auto; }
+  .sk-layout.is-sidebar-open .sk-sidebar { transform: translateX(0); }
+  .sk-sidebar-backdrop { position: absolute; z-index: 1; inset: 0; border: 0; background: color-mix(in srgb, var(--sk-text) 22%, transparent); cursor: pointer; }
+  .sk-layout.is-sidebar-open .sk-sidebar-backdrop { display: block; }
+}
 
 @media (max-width: 620px) { .sk-titlebar-actions { display: none; }.sk-tip { align-items: flex-start; flex-wrap: wrap; }.sk-row { align-items: flex-start; }.sk-savebar-message { display: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }

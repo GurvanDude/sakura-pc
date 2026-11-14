@@ -16,6 +16,13 @@
     .demo-light { padding: 18px; }
     .demo-flex { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
     .demo-chat { max-width: 720px; }
+    .demo-charts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .demo-sidebar-layout { height: 330px; }
+    .demo-sidebar-main { padding: 20px; }
+    .demo-sidebar-main-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .demo-sidebar-main-head .sk-section-title { margin: 0; }
+    @media (max-width: 900px) { .demo-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 520px) { .demo-charts { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -98,6 +105,46 @@
         <div><button class="sk-btn sk-btn--secondary sk-details-toggle" type="button" id="details-button">Détails ▾</button><div class="sk-card sk-details" id="details-panel"><strong>Ce qui est vérifié</strong><p class="demo-note">Les fichiers temporaires, la mémoire disponible et les applications actives.</p></div></div>
       </section>
 
+      <section class="sk-section sk-stack">
+        <div class="demo-flex">
+          <h2 class="sk-section-title" style="margin:0">Graphes</h2>
+          <button class="sk-btn sk-btn--secondary sk-btn--small" type="button" id="new-measure">Nouvelle mesure</button>
+        </div>
+        <div class="sk-grid demo-charts">
+          <article id="chart-cpu"></article>
+          <article id="chart-ram"></article>
+          <article id="chart-gpu"></article>
+          <article id="chart-disk"></article>
+        </div>
+      </section>
+
+      <section class="sk-section">
+        <h2 class="sk-section-title">Colonne latérale</h2>
+        <div class="sk-layout demo-sidebar-layout" id="sidebar-demo">
+          <aside class="sk-sidebar" aria-label="Conversations d’exemple">
+            <div class="sk-sidebar-head">
+              <h3 class="sk-sidebar-title">Conversations</h3>
+              <button class="sk-btn sk-btn--icon sk-btn--secondary" type="button" aria-label="Nouvelle conversation">＋</button>
+            </div>
+            <nav class="sk-sidebar-list">
+              <button class="sk-sidebar-item is-active" type="button"><span class="sk-sidebar-item-title">Nettoyer mon disque</span><span class="sk-sidebar-item-sub">Il y a 2 minutes</span></button>
+              <button class="sk-sidebar-item" type="button"><span class="sk-sidebar-item-title">Mon PC chauffe</span><span class="sk-sidebar-item-sub">Hier</span></button>
+              <button class="sk-sidebar-item" type="button"><span class="sk-sidebar-item-title">Choisir un mode lumière</span><span class="sk-sidebar-item-sub">Mardi</span></button>
+              <button class="sk-sidebar-item" type="button"><span class="sk-sidebar-item-title">Optimiser Hana Valley</span><span class="sk-sidebar-item-sub">La semaine dernière</span></button>
+            </nav>
+          </aside>
+          <div class="sk-layout-main demo-sidebar-main">
+            <div class="demo-sidebar-main-head">
+              <button class="sk-btn sk-btn--icon sk-btn--secondary" type="button" id="sidebar-toggle" aria-label="Afficher ou masquer les conversations">☰</button>
+              <h3 class="sk-section-title">Nettoyer mon disque</h3>
+            </div>
+            <div class="sk-chat">
+              <div class="sk-msg sk-msg--sakura"><div class="sk-avatar" aria-hidden="true">🌸</div><div><div class="sk-msg-name">Sakura</div><div class="sk-bubble">Je peux t’aider à retrouver de la place sans toucher à tes jeux.</div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="sk-section demo-chat">
         <h2 class="sk-section-title">Mini-chat</h2>
         <div class="sk-chat sk-card">
@@ -132,6 +179,26 @@
 
       Sakura.tabs(document.querySelector(".sk-tabs"));
       Sakura.details(document.getElementById("details-button"), document.getElementById("details-panel"));
+
+      const chartData = {
+        cpu: [12, 18, 15, 29, 42, 31, 18],
+        ram: [48, 50, 53, 51, 58, 61, 59],
+        gpu: [8, 12, 35, 54, 47, 33, 26],
+        disk: [4, 7, 6, 18, 12, 9, 14]
+      };
+      const charts = {
+        cpu: Sakura.chart(document.getElementById("chart-cpu"), { values: chartData.cpu, max: 100, kind: "cpu", label: "Processeur", unit: "%", height: 92 }),
+        ram: Sakura.chart(document.getElementById("chart-ram"), { values: chartData.ram, max: 100, kind: "ram", label: "Mémoire", unit: "%", height: 92 }),
+        gpu: Sakura.chart(document.getElementById("chart-gpu"), { values: chartData.gpu, max: 100, kind: "gpu", label: "Carte graphique", unit: "%", height: 92 }),
+        disk: Sakura.chart(document.getElementById("chart-disk"), { values: chartData.disk, max: 100, kind: "disk", label: "Disque", unit: "%", height: 92 })
+      };
+      document.getElementById("new-measure").addEventListener("click", function () {
+        Object.keys(charts).forEach(function (kind) {
+          chartData[kind] = chartData[kind].slice(-11).concat(Math.round(5 + Math.random() * (kind === "ram" ? 65 : 80)));
+          charts[kind].update(chartData[kind]);
+        });
+      });
+      Sakura.sidebar(document.getElementById("sidebar-demo"), { toggle: document.getElementById("sidebar-toggle") });
 
       document.querySelectorAll(".sk-seg").forEach(function (seg) {
         seg.addEventListener("click", function (event) {

@@ -316,7 +316,7 @@
     save.addEventListener("click", function () { if (typeof opts.onSave === "function") opts.onSave(); });
     cancel.addEventListener("click", function () { if (typeof opts.onCancel === "function") opts.onCancel(); });
     bar.append(save, cancel, message);
-    (doc.querySelector(".sk-window") || doc.body).appendChild(bar);
+    doc.body.appendChild(bar); // dans body : « fixed » reste collé en bas, au-dessus du décor de la fenêtre
     return { element: bar, show: function () { bar.classList.add("is-visible"); }, hide: function () { bar.classList.remove("is-visible"); } };
   }
 
@@ -331,6 +331,138 @@
     zone.appendChild(item);
     global.setTimeout(function () { item.remove(); }, 3000);
     return item;
+  }
+
+  function chart(target, options) {
+    const host = typeof target === "string" ? doc.querySelector(target) : target;
+    if (!host) return { update: function () {} };
+    const opts = Object.assign({ values: [], kind: "accent", unit: "%", height: 104 }, options || {});
+    const kinds = new Set(["cpu", "ram", "gpu", "disk", "accent"]);
+    const kind = kinds.has(opts.kind) ? opts.kind : "accent";
+    const labels = { cpu: "Processeur", ram: "Mémoire", gpu: "Carte graphique", disk: "Disque", accent: "Mesure" };
+    const label = opts.label || labels[kind];
+    let values = [];
+
+    host.classList.add("sk-chart", "sk-chart--" + kind);
+    host.setAttribute("role", "img");
+    host.style.setProperty("--sk-chart-height", Math.max(56, Number(opts.height) || 104) + "px");
+
+    const head = el("div", "sk-chart-head");
+    const name = el("span", "sk-chart-label", label);
+    const current = el("strong", "sk-chart-value");
+    head.append(name, current);
+    const svg = svgNode("svg", { class: "sk-chart-svg", "aria-hidden": "true", preserveAspectRatio: "none" });
+    const empty = el("div", "sk-chart-empty", "Pas encore de mesures");
+    host.replaceChildren(head, svg, empty);
+
+    function format(value) {
+      return value.toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + (opts.unit ? " " + opts.unit : "");
+    }
+
+    function smoothPath(points) {
+      if (points.length < 2) return "";
+      let path = "M" + points[0][0].toFixed(2) + "," + points[0][1].toFixed(2);
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const previous = points[Math.max(0, index - 1)];
+        const point = points[index];
+        const next = points[index + 1];
+        const after = points[Math.min(points.length - 1, index + 2)];
+        const controlOne = [point[0] + (next[0] - previous[0]) / 6, point[1] + (next[1] - previous[1]) / 6];
+        const controlTwo = [next[0] - (after[0] - point[0]) / 6, next[1] - (after[1] - point[1]) / 6];
+        path += " C" + controlOne[0].toFixed(2) + "," + controlOne[1].toFixed(2) + " " + controlTwo[0].toFixed(2) + "," + controlTwo[1].toFixed(2) + " " + next[0].toFixed(2) + "," + next[1].toFixed(2);
+      }
+      return path;
+    }
+
+    function render() {
+      const width = Math.max(160, Math.round(host.getBoundingClientRect().width || 320));
+      const height = Math.max(56, Number(opts.height) || 104);
+      const left = 5, right = width - 5, top = 7, bottom = height - 7;
+      svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+      svg.replaceChildren();
+      empty.hidden = values.length > 0;
+      svg.hidden = values.length === 0;
+      if (!values.length) {
+        current.textContent = "—";
+        host.setAttribute("aria-label", label + " : pas encore de mesures");
+        return;
+      }
+
+      const highest = Math.max.apply(null, values);
+      const configuredMax = Number(opts.max);
+      const ceiling = Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : Math.max(1, highest);
+      const x = function (index) { return values.length === 1 ? right : left + index / (values.length - 1) * (right - left); };
+      const y = function (value) { return bottom - Math.max(0, Math.min(ceiling, value)) / ceiling * (bottom - top); };
+      [0, .5, 1].forEach(function (ratio) {
+        svg.appendChild(svgNode("line", { x1: left, x2: right, y1: top + ratio * (bottom - top), y2: top + ratio * (bottom - top), class: "sk-chart-guide" }));
+      });
+      let points = values.map(function (value, index) { return [x(index), y(value)]; });
+      if (points.length === 1) points = [[left, points[0][1]], [right, points[0][1]]];
+      const line = smoothPath(points);
+      const area = line + " L" + points[points.length - 1][0].toFixed(2) + "," + bottom + " L" + points[0][0].toFixed(2) + "," + bottom + " Z";
+      svg.appendChild(svgNode("path", { d: area, class: "sk-chart-area" }));
+      svg.appendChild(svgNode("path", { d: line, class: "sk-chart-line" }));
+      const last = points[points.length - 1];
+      svg.appendChild(svgNode("circle", { cx: last[0], cy: last[1], r: 3.5, class: "sk-chart-point" }));
+      current.textContent = format(values[values.length - 1]);
+      host.setAttribute("aria-label", label + " : " + format(values[values.length - 1]) + " maintenant, " + format(highest) + " au plus haut");
+    }
+
+    function update(nextValues) {
+      values = Array.isArray(nextValues) ? nextValues.map(Number).filter(Number.isFinite) : [];
+      render();
+    }
+
+    const observer = typeof global.ResizeObserver === "function" ? new global.ResizeObserver(render) : null;
+    if (observer) observer.observe(host);
+    update(opts.values);
+    return { update: update };
+  }
+
+  function sidebar(target, options) {
+    const layout = typeof target === "string" ? doc.querySelector(target) : target;
+    const toggleButton = options && options.toggle;
+    if (!layout || !toggleButton) return { open: function () {}, close: function () {}, toggle: function () {} };
+    const panel = layout.querySelector(".sk-sidebar");
+    if (!panel) return { open: function () {}, close: function () {}, toggle: function () {} };
+    const media = global.matchMedia("(max-width: 760px)");
+    const storageKey = "sakura.sidebar.collapsed";
+    let collapsed = storageGet(storageKey) === "true";
+    if (!panel.id) panel.id = "sk-sidebar-" + Math.random().toString(36).slice(2, 9);
+    toggleButton.setAttribute("aria-controls", panel.id);
+    const backdrop = el("button", "sk-sidebar-backdrop");
+    backdrop.type = "button";
+    backdrop.setAttribute("aria-label", "Fermer la colonne latérale");
+    layout.appendChild(backdrop);
+
+    function sync() {
+      const expanded = media.matches ? layout.classList.contains("is-sidebar-open") : !collapsed;
+      layout.classList.toggle("is-collapsed", !media.matches && collapsed);
+      toggleButton.setAttribute("aria-expanded", String(expanded));
+    }
+    function open() {
+      if (media.matches) layout.classList.add("is-sidebar-open");
+      else { collapsed = false; storageSet(storageKey, "false"); }
+      sync();
+    }
+    function close() {
+      if (media.matches) layout.classList.remove("is-sidebar-open");
+      else { collapsed = true; storageSet(storageKey, "true"); }
+      sync();
+    }
+    function toggle() {
+      if (media.matches) layout.classList.toggle("is-sidebar-open");
+      else { collapsed = !collapsed; storageSet(storageKey, String(collapsed)); }
+      sync();
+    }
+    function onEscape(event) { if (event.key === "Escape" && media.matches) close(); }
+    toggleButton.addEventListener("click", toggle);
+    backdrop.addEventListener("click", close);
+    doc.addEventListener("keydown", onEscape);
+    if (typeof media.addEventListener === "function") media.addEventListener("change", function () { layout.classList.remove("is-sidebar-open"); sync(); });
+    else if (typeof media.addListener === "function") media.addListener(function () { layout.classList.remove("is-sidebar-open"); sync(); });
+    sync();
+    return { open: open, close: close, toggle: toggle };
   }
 
   function updateRange(input) {
@@ -356,7 +488,7 @@
     esc: esc, init: init, decor: decor, titlebar: titlebar,
     setTheme: setTheme, toggleTheme: toggleTheme, getTheme: getTheme, onThemeChange: onThemeChange,
     brush: brush, coverColor: coverColor, tabs: tabs, confirm: confirmAction,
-    details: details, savebar: savebar, toast: toast
+    details: details, savebar: savebar, toast: toast, chart: chart, sidebar: sidebar
   });
 
   global.Sakura = Sakura;
