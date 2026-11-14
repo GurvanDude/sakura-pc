@@ -20,6 +20,64 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 LAUNCHER_ROOT = APP_ROOT.parent / "launcher"
 FILE_SEARCH_SECONDS = 3.0
 MAX_FILE_RESULTS = 10
+START_MENU_CACHE_SECONDS = 5 * 60
+MAX_OTHER_APPS = 60
+
+_IGNORED_SHORTCUT_WORDS = {
+    "uninstall", "desinstaller", "help", "aide", "read me", "readme",
+    "website", "manuel",
+}
+
+_WINDOWS_APPS: tuple[dict[str, Any], ...] = (
+    {
+        "name": "Bloc-notes",
+        "aliases": ["notepad", "bloc note", "blocnote"],
+        "launch": {"exe": "notepad.exe"},
+        "processes": ["notepad.exe"],
+    },
+    {
+        "name": "Calculatrice",
+        "aliases": ["calc", "calculator"],
+        "launch": {"exe": "calc.exe"},
+        "processes": ["CalculatorApp.exe"],
+    },
+    {
+        "name": "Paint",
+        "aliases": ["mspaint"],
+        "launch": {"exe": "mspaint.exe"},
+        "processes": ["mspaint.exe"],
+    },
+    {
+        "name": "Explorateur de fichiers",
+        "aliases": ["explorateur", "explorer", "file explorer"],
+        "launch": {"exe": "explorer.exe"},
+        "processes": ["explorer.exe"],
+    },
+    {
+        "name": "Paramètres",
+        "aliases": ["reglages windows", "parametres windows", "settings", "windows settings"],
+        "launch": {"uri": "ms-settings:"},
+        "processes": ["SystemSettings.exe"],
+    },
+    {
+        "name": "Gestionnaire des tâches",
+        "aliases": ["task manager", "taskmgr"],
+        "launch": {"exe": "taskmgr.exe"},
+        "processes": ["taskmgr.exe"],
+    },
+    {
+        "name": "Invite de commandes",
+        "aliases": ["cmd", "command prompt"],
+        "launch": {"exe": "cmd.exe"},
+        "processes": ["cmd.exe"],
+    },
+    {
+        "name": "Capture d'écran",
+        "aliases": ["outil capture", "snipping tool", "screen clip"],
+        "launch": {"uri": "ms-screenclip:"},
+        "processes": ["SnippingTool.exe", "ScreenClippingHost.exe"],
+    },
+)
 
 
 def _normalise(value: Any) -> str:
@@ -49,27 +107,79 @@ def _entries(config: dict[str, Any]) -> list[dict[str, Any]]:
     return found
 
 
+def _entry_names(entry: dict[str, Any]) -> list[str]:
+    aliases = entry.get("aliases", [])
+    return [entry["name"], *(alias for alias in aliases if isinstance(alias, str))]
+
+
 def _matches(query: str, entries: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
     wanted = _normalise(query)
-    named = [(entry, _normalise(entry["name"])) for entry in entries]
+    named = [(entry, _normalise(alias)) for entry in entries for alias in _entry_names(entry)]
     if not wanted:
-        return [], [entry["name"] for entry, _ in named[:5]]
+        return [], [entry["name"] for entry in entries[:5]]
 
-    exact = [entry for entry, name in named if name == wanted]
+    exact = _highest_priority(_unique_entries(entry for entry, name in named if name == wanted))
     if exact:
         return exact, []
-    partial = [entry for entry, name in named if wanted in name or name in wanted]
+    partial = _highest_priority(_unique_entries(entry for entry, name in named if wanted in name))
     if partial:
         return partial, []
 
-    by_name = {name: entry for entry, name in named}
+    by_name: dict[str, dict[str, Any]] = {}
+    for entry, normal in named:
+        by_name.setdefault(normal, entry)
     close = difflib.get_close_matches(wanted, list(by_name), n=5, cutoff=0.45)
     if close:
         best = difflib.SequenceMatcher(None, wanted, close[0]).ratio()
-        matches = [by_name[name] for name in close if difflib.SequenceMatcher(None, wanted, name).ratio() >= best - 0.03]
-        if best >= 0.62:
+        matches = _highest_priority(_unique_entries(
+            by_name[name] for name in close
+            if difflib.SequenceMatcher(None, wanted, name).ratio() >= best - 0.03
+        ))
+        length_ratio = min(len(wanted), len(close[0])) / max(len(wanted), len(close[0]))
+        # les mots courts (« obs ») ressemblent vite à autre chose (« osu ») : on exige plus
+        if best >= (0.62 if len(wanted) >= 6 else 0.8) and length_ratio >= 0.7:
             return matches, []
     return [], [by_name[name]["name"] for name in close] or [entry["name"] for entry, _ in named[:5]]
+
+
+def _unique_entries(entries) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for entry in entries:
+        marker = id(entry)
+        if marker not in seen:
+            seen.add(marker)
+            found.append(entry)
+    return found
+
+
+def _highest_priority(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not entries:
+        return []
+    ranks = {"launcher": 0, "start_menu": 1, "windows": 2}
+    best = min(ranks.get(entry.get("_source"), 0) for entry in entries)
+    return [entry for entry in entries if ranks.get(entry.get("_source"), 0) == best]
+
+
+def _default_start_menu_roots() -> list[Path]:
+    roots: list[Path] = []
+    appdata = os.environ.get("APPDATA")
+    program_data = os.environ.get("ProgramData") or os.environ.get("PROGRAMDATA")
+    if appdata:
+        roots.append(Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs")
+    if program_data:
+        roots.append(Path(program_data) / "Microsoft" / "Windows" / "Start Menu" / "Programs")
+    return roots
+
+
+def _shortcut_target(path: Path) -> str | None:
+    try:
+        import win32com.client
+
+        target = win32com.client.Dispatch("WScript.Shell").CreateShortCut(str(path)).Targetpath
+        return target if isinstance(target, str) and target else None
+    except Exception:
+        return None
 
 
 def _launcher_start(launch: dict[str, Any], browser: str | None) -> None:
@@ -138,6 +248,9 @@ class ToolRegistry:
         launcher_start: Callable[[dict[str, Any], str | None], None] = _launcher_start,
         volume_endpoint: Callable[[], Any] = _volume_endpoint,
         search_roots: Callable[[], list[Path]] = _default_roots,
+        start_menu_roots: Callable[[], list[Path]] = _default_start_menu_roots,
+        shortcut_target: Callable[[Path], str | None] = _shortcut_target,
+        monotonic: Callable[[], float] = time.monotonic,
         process_iter: Callable[..., Any] | None = None,
         wait_procs: Callable[..., Any] | None = None,
         logger: Any = None,
@@ -146,6 +259,11 @@ class ToolRegistry:
         self._launcher_start = launcher_start
         self._volume_endpoint = volume_endpoint
         self._search_roots = search_roots
+        self._start_menu_roots = start_menu_roots
+        self._shortcut_target = shortcut_target
+        self._monotonic = monotonic
+        self._start_menu_cache: list[dict[str, Any]] | None = None
+        self._start_menu_cache_time = 0.0
         self._process_iter = process_iter
         self._wait_procs = wait_procs
         self._logger = logger
@@ -155,7 +273,7 @@ class ToolRegistry:
         text = {"type": "string"}
         return [
             Tool(
-                "open_app", "Ouvre une application ou un jeu du Launcher.",
+                "open_app", "Ouvre une application ou un jeu du Launcher, toute application installée, ou une application Windows (bloc-notes, calculatrice, paramètres…).",
                 _object_schema({"name": text}, ["name"]), False, self._open_app,
                 lambda args: f"{args.get('name', 'Application')} ouvert",
             ),
@@ -244,7 +362,7 @@ class ToolRegistry:
 
     def _open_app(self, name: str) -> dict[str, Any]:
         config = self._config_loader()
-        matches, suggestions = _matches(name, _entries(config))
+        matches, suggestions = _matches(name, self._catalog(config))
         if len(matches) > 1:
             return {"ok": False, "message": "Plusieurs applications correspondent.", "choices": [item["name"] for item in matches]}
         if not matches:
@@ -262,7 +380,53 @@ class ToolRegistry:
         config = self._config_loader()
         apps = [entry["name"] for entry in config.get("apps", []) if isinstance(entry, dict) and isinstance(entry.get("name"), str)] if isinstance(config.get("apps", []), list) else []
         games = [entry["name"] for entry in config.get("games", []) if isinstance(entry, dict) and isinstance(entry.get("name"), str)] if isinstance(config.get("games", []), list) else []
-        return {"ok": True, "message": f"{len(apps) + len(games)} éléments disponibles.", "apps": apps, "games": games}
+        other_apps = sorted(
+            {entry["name"] for entry in self._catalog(config) if entry.get("_source") != "launcher"},
+            key=_normalise,
+        )[:MAX_OTHER_APPS]
+        return {
+            "ok": True,
+            "message": f"{len(apps) + len(games) + len(other_apps)} éléments disponibles.",
+            "apps": apps,
+            "games": games,
+            "other_apps": other_apps,
+        }
+
+    def _catalog(self, config: dict[str, Any]) -> list[dict[str, Any]]:
+        launcher = [{**entry, "_source": "launcher"} for entry in _entries(config)]
+        candidates = [*launcher, *self._start_menu_entries(), *({**entry, "_source": "windows"} for entry in _WINDOWS_APPS)]
+        catalog: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for entry in candidates:
+            normal = _normalise(entry["name"])
+            if normal and normal not in seen:
+                seen.add(normal)
+                catalog.append(entry)
+        return catalog
+
+    def _start_menu_entries(self) -> list[dict[str, Any]]:
+        now = self._monotonic()
+        if self._start_menu_cache is not None and now - self._start_menu_cache_time <= START_MENU_CACHE_SECONDS:
+            return self._start_menu_cache
+        entries: list[dict[str, Any]] = []
+        for root in self._start_menu_roots():
+            try:
+                shortcuts = sorted(root.rglob("*.lnk"), key=lambda path: _normalise(path.stem)) if root.exists() else []
+            except OSError:
+                shortcuts = []
+            for shortcut in shortcuts:
+                normal = _normalise(shortcut.stem)
+                if any(word in normal for word in _IGNORED_SHORTCUT_WORDS):
+                    continue
+                entries.append({
+                    "name": shortcut.stem,
+                    "launch": {"file": str(shortcut)},
+                    "_source": "start_menu",
+                    "_shortcut": shortcut,
+                })
+        self._start_menu_cache = entries
+        self._start_menu_cache_time = now
+        return entries
 
     def _set_volume(self, percent: Any) -> dict[str, Any]:
         value = _bounded_percent(percent)
@@ -324,22 +488,32 @@ class ToolRegistry:
         aliases: set[str] = {wanted}
         if wanted in protected or wanted.startswith("python") or wanted.startswith("ollama"):
             return {"ok": False, "message": f"Je ne peux pas fermer le processus protégé {name}."}
-        entries = _entries(self._config_loader())
-        launcher_matches, _suggestions = _matches(name, entries)
-        if len(launcher_matches) > 1:
+        config = self._config_loader()
+        catalog_matches, _suggestions = _matches(name, self._catalog(config))
+        if len(catalog_matches) > 1:
             return {
                 "ok": False,
                 "message": "Plusieurs applications correspondent.",
-                "choices": [entry["name"] for entry in launcher_matches],
+                "choices": [entry["name"] for entry in catalog_matches],
             }
-        if launcher_matches:
-            entry = launcher_matches[0]
+        if catalog_matches:
+            entry = catalog_matches[0]
             process = entry.get("process")
             if isinstance(process, str):
                 aliases.add(_normalise(Path(process).stem))
+            for process_name in entry.get("processes", []):
+                if isinstance(process_name, str):
+                    aliases.add(_normalise(Path(process_name).stem))
             launch = entry.get("launch", {})
             if isinstance(launch, dict) and isinstance(launch.get("exe"), str):
                 aliases.add(_normalise(Path(launch["exe"]).stem))
+            shortcut = entry.get("_shortcut")
+            if isinstance(shortcut, Path):
+                target = self._shortcut_target(shortcut)
+                if target:
+                    aliases.add(_normalise(Path(target).stem))
+        if aliases & protected or any(alias.startswith("python") or alias.startswith("ollama") for alias in aliases):
+            return {"ok": False, "message": f"Je ne peux pas fermer le processus protégé {name}."}
 
         iterator = self._process_iter or psutil.process_iter
         matches = []

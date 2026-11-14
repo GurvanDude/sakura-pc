@@ -48,6 +48,67 @@ def test_correspondance_ambigue_et_introuvable_ne_lance_rien():
     assert launched == []
 
 
+def test_open_app_connait_les_alias_du_bloc_notes():
+    launched = []
+    registry = ToolRegistry(
+        config_loader=lambda: {"apps": [], "games": []},
+        start_menu_roots=lambda: [],
+        launcher_start=lambda launch, browser: launched.append((launch, browser)),
+    )
+
+    for name in ("bloc-notes", "bloc note", "Notepad"):
+        result = registry.run("open_app", {"name": name})
+        assert result["ok"] is True
+        assert result["name"] == "Bloc-notes"
+
+    assert launched == [({"exe": "notepad.exe"}, None)] * 3
+
+
+def test_open_app_trouve_un_raccourci_du_menu_demarrer(tmp_path):
+    shortcut = tmp_path / "Outils" / "Mon Application.lnk"
+    shortcut.parent.mkdir()
+    shortcut.write_bytes(b"faux raccourci")
+    launched = []
+    registry = ToolRegistry(
+        config_loader=lambda: {"apps": [], "games": []},
+        start_menu_roots=lambda: [tmp_path],
+        launcher_start=lambda launch, browser: launched.append((launch, browser)),
+    )
+
+    result = registry.run("open_app", {"name": "mon application"})
+
+    assert result["ok"] is True
+    assert launched == [({"file": str(shortcut)}, None)]
+
+
+def test_menu_demarrer_ignore_les_raccourcis_de_desinstallation(tmp_path):
+    (tmp_path / "Désinstaller X.lnk").write_bytes(b"faux raccourci")
+    registry = ToolRegistry(
+        config_loader=lambda: {"apps": [], "games": []},
+        start_menu_roots=lambda: [tmp_path],
+        launcher_start=lambda *_args: (_ for _ in ()).throw(AssertionError("aucun lancement attendu")),
+    )
+
+    result = registry.run("open_app", {"name": "Désinstaller X"})
+
+    assert result["ok"] is False
+
+
+def test_launcher_est_prioritaire_sur_un_raccourci_du_meme_nom(tmp_path):
+    shortcut = tmp_path / "Discord.lnk"
+    shortcut.write_bytes(b"faux raccourci")
+    launched = []
+    registry = ToolRegistry(
+        config_loader=fake_config,
+        start_menu_roots=lambda: [tmp_path],
+        launcher_start=lambda launch, browser: launched.append((launch, browser)),
+    )
+
+    registry.run("open_app", {"name": "Discord"})
+
+    assert launched == [({"exe": "discord.exe"}, "browser.exe")]
+
+
 def test_find_files_ignore_les_dossiers_caches_et_trie(tmp_path):
     documents = tmp_path / "Documents"
     documents.mkdir()
@@ -101,4 +162,34 @@ def test_close_app_ne_touche_jamais_a_la_liste_noire():
     for name in ("explorer", "python", "ollama", "system"):
         assert registry.run("close_app", {"name": name})["ok"] is False
     assert not any(process.terminated or process.killed for process in processes)
+
+
+def test_close_app_bloc_notes_vise_notepad():
+    notepad = FakeProcess(100, "notepad.exe")
+    registry = ToolRegistry(
+        config_loader=lambda: {"apps": [], "games": []},
+        start_menu_roots=lambda: [],
+        process_iter=lambda _attrs: [notepad],
+        wait_procs=lambda processes, timeout: (processes, []),
+    )
+
+    result = registry.run("close_app", {"name": "bloc-notes"})
+
+    assert result["ok"] is True
+    assert notepad.terminated is True
+
+
+def test_close_app_refuse_alias_explorateur():
+    explorer = FakeProcess(100, "explorer.exe")
+    registry = ToolRegistry(
+        config_loader=lambda: {"apps": [], "games": []},
+        start_menu_roots=lambda: [],
+        process_iter=lambda _attrs: [explorer],
+        wait_procs=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("aucune attente attendue")),
+    )
+
+    result = registry.run("close_app", {"name": "explorateur"})
+
+    assert result["ok"] is False
+    assert explorer.terminated is False
 
