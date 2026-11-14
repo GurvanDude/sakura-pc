@@ -21,4 +21,85 @@
   --font-jp: "Zen Maru Gothic", "Yu Gothic UI", sans-serif;
 
   --radius: 18px;
+
+  /* Kit UI Sakura : valeurs semantiques validees (jour par defaut). */
+  --sk-bg: linear-gradient(160deg, #fff6f9, #ffe6f0);
+  --sk-text: #3a1028;
+  --sk-muted: #7a4a62;
+  --sk-label: #7a4a62;
+  --sk-accent: #e0528a;
+  --sk-accent-soft: #f6a9c1;
+  --sk-line: #f0cbd9;
+  --sk-control-border: #e7b8cb;
+  --sk-cpu: #f6a9c1;
+  --sk-ram: #c3b6ee;
+  --sk-gpu: #a9d4f2;
+  --sk-disk: #f8bd86;
+  --sk-ok: #2f9e6e;
+  --sk-warn: #d06a1e;
+  --sk-primary: linear-gradient(135deg, #e0528a, #c13d78);
+  --sk-primary-shadow: 0 4px 12px -4px rgba(193, 61, 120, .6), inset 0 1px 0 rgba(255, 255, 255, .35);
+  --sk-primary-text: #fff;
+  --sk-secondary-bg: rgba(255, 255, 255, .6);
+  --sk-secondary-border: #e0528a;
+  --sk-secondary-text: #c13d78;
+  --sk-surface: rgba(255, 255, 255, .62);
+  --sk-surface-strong: rgba(255, 255, 255, .84);
+  --sk-glass-border: #f0cbd9;
+  --sk-tip-bg: rgba(255, 255, 255, .7);
+  --sk-tip-border: #f6d3b4;
+  --sk-tip-edge: #f0a35e;
+  --sk-danger: #b8561c;
+  --sk-danger-border: #f8bd86;
+  --sk-cover-dark: #c9c3e6;
+  --sk-decor-watermark: #e0528a;
+  --sk-decor-petal: #f6a9c1;
+  --sk-decor-star: #ffffff;
+  --sk-mood-bg: #ffffff;
+  --sk-mood-border: #f6a9c1;
+  --sk-tab-mark: #f6a9c1;
+  --sk-chat-bubble: rgba(255, 255, 255, .82);
+  --sk-range-start: #e0528a;
+  --sk-range-end: #e0528a;
+  --sk-neon-base: #14061e;
+  --sk-window-close: #e81123;
+  --sk-radius: 14px;
+}
+
+html[data-theme="night"] {
+  --sk-bg: radial-gradient(circle at 88% 8%, rgba(167, 123, 255, .28), transparent 45%), radial-gradient(circle at 92% 98%, rgba(255, 47, 166, .3), transparent 45%), linear-gradient(160deg, #12061a, #24093a);
+  --sk-text: #fff;
+  --sk-muted: #f1d9e8;
+  --sk-label: #e3c6ef;
+  --sk-accent: #ff2fa6;
+  --sk-accent-soft: #ff5cbb;
+  --sk-line: #4a1d57;
+  --sk-control-border: rgba(255, 255, 255, .18);
+  --sk-cpu: #ff2fa6;
+  --sk-ram: #a77bff;
+  --sk-gpu: #3fc8ff;
+  --sk-disk: #ff9a3c;
+  --sk-ok: #7dffcb;
+  --sk-warn: #ffbe7a;
+  --sk-primary: linear-gradient(135deg, #ff2fa6, #a03cff);
+  --sk-primary-shadow: 0 0 14px rgba(255, 47, 166, .6), inset 0 1px 0 rgba(255, 255, 255, .35);
+  --sk-secondary-bg: rgba(255, 255, 255, .07);
+  --sk-secondary-border: #ff5cbb;
+  --sk-secondary-text: #fff;
+  --sk-surface: rgba(255, 255, 255, .07);
+  --sk-surface-strong: rgba(255, 255, 255, .1);
+  --sk-glass-border: rgba(255, 255, 255, .14);
+  --sk-tip-bg: rgba(255, 154, 60, .08);
+  --sk-tip-border: rgba(255, 154, 60, .35);
+  --sk-tip-edge: #ff9a3c;
+  --sk-danger: #ffbe7a;
+  --sk-danger-border: #ff9a3c;
+  --sk-decor-watermark: #ff2fa6;
+  --sk-decor-petal: #ff2fa6;
+  --sk-mood-bg: #12061a;
+  --sk-mood-border: #ff2fa6;
+  --sk-tab-mark: #ff2fa6;
+  --sk-chat-bubble: rgba(255, 255, 255, .07);
+  --sk-range-start: #ff2fa6;
+  --sk-range-end: #c86bff;
 }

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr" data-theme="day">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kit UI Sakura — démonstration</title>
+  <link rel="stylesheet" href="../tokens.css">
+  <link rel="stylesheet" href="sakura.css">
+  <style>
+    .demo-note { color: var(--sk-muted); font-size: 13px; }
+    .demo-games { display: grid; gap: 14px; }
+    .demo-game { min-height: 76px; display: flex; align-items: center; gap: 12px; padding: 12px 18px; }
+    .demo-cover { width: 46px; height: 52px; border-radius: 8px; box-shadow: 0 3px 10px rgba(30,8,24,.2); }
+    .demo-control { display: grid; gap: 6px; }
+    .demo-control label { color: var(--sk-label); font-size: 12px; font-weight: 800; }
+    .demo-light { padding: 18px; }
+    .demo-flex { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .demo-chat { max-width: 720px; }
+  </style>
+</head>
+<body>
+  <div class="sk-window" id="demo-window" data-torii="faint">
+    <main class="sk-main">
+      <section class="sk-section">
+        <div class="sk-verdict">
+          <div class="sk-mood" aria-hidden="true">😊</div>
+          <div>
+            <div class="sk-tag">調子いい · TOUT VA BIEN</div>
+            <h1 class="sk-title">Ton PC est calme</h1>
+            <p class="sk-sub">Tout est fluide. Tu peux continuer tranquillement.</p>
+          </div>
+        </div>
+        <div class="sk-grid" aria-label="État du PC">
+          <article class="sk-stat sk-stat--cpu"><div class="sk-stat-label">Processeur</div><div class="sk-stat-value">18 %</div><div class="sk-stat-state is-ok">Calme</div></article>
+          <article class="sk-stat sk-stat--ram"><div class="sk-stat-label">Mémoire</div><div class="sk-stat-value">6,4 Go</div><div class="sk-stat-state is-ok">Disponible</div></article>
+          <article class="sk-stat sk-stat--gpu"><div class="sk-stat-label">Carte graphique</div><div class="sk-stat-value">42 °C</div><div class="sk-stat-state is-ok">Au frais</div></article>
+          <article class="sk-stat sk-stat--disk"><div class="sk-stat-label">Disque</div><div class="sk-stat-value">86 %</div><div class="sk-stat-state is-warn">Presque plein</div></article>
+        </div>
+      </section>
+
+      <section class="sk-section" id="tab-demo">
+        <h2 class="sk-section-title">Onglets et cartes</h2>
+        <div class="sk-tabs" role="tablist">
+          <button class="sk-tab is-active" type="button" role="tab" data-tab="jeux">Mes jeux</button>
+          <button class="sk-tab" type="button" role="tab" data-tab="activite">Activité</button>
+          <button class="sk-tab" type="button" role="tab" data-tab="neon">Carte néon</button>
+        </div>
+        <div data-panel="jeux">
+          <div class="demo-games" id="games">
+            <article class="demo-game" data-sk-brush><canvas class="demo-cover" width="46" height="52" data-colors="#ec6f91,#f4bf72" aria-label="Jaquette rose et orange"></canvas><div class="sk-row-main"><div class="sk-row-title">Hana Valley</div><div class="sk-row-sub">Prêt à jouer</div></div><button class="sk-chip" type="button">Image ↑</button><button class="sk-chip" type="button">Image ↓</button><button class="sk-btn sk-btn--danger sk-btn--small" type="button">Retirer</button></article>
+            <article class="demo-game" data-sk-brush><canvas class="demo-cover" width="46" height="52" data-colors="#141426,#463177" aria-label="Jaquette sombre violette"></canvas><div class="sk-row-main"><div class="sk-row-title">Midnight Circuit</div><div class="sk-row-sub">Dernière partie hier</div></div><button class="sk-chip" type="button">Réglages</button><button class="sk-btn sk-btn--icon sk-btn--secondary" type="button" aria-label="Plus d’options">•••</button></article>
+          </div>
+        </div>
+        <div data-panel="activite" hidden>
+          <div class="sk-card sk-stack">
+            <div class="sk-row"><div class="sk-row-icon">⚙</div><div class="sk-row-main"><div class="sk-row-title">Sakura Optimizer</div><div class="sk-row-sub">Processeur · 18 %</div><div class="sk-meter sk-meter--cpu" style="--sk-value:18%"></div></div><div class="sk-row-end">Calme</div></div>
+            <div class="sk-row"><div class="sk-row-icon">♟</div><div class="sk-row-main"><div class="sk-row-title">Hana Valley</div><div class="sk-row-sub">Mémoire · 44 %</div><div class="sk-meter sk-meter--ram" style="--sk-value:44%"></div></div><div class="sk-row-end">2,8 Go</div></div>
+          </div>
+        </div>
+        <div data-panel="neon" hidden><div class="sk-card sk-neon" style="--sk-n:var(--sk-gpu)"><strong>Carte néon libre</strong><p class="demo-note">Utilise <code>--sk-n</code> pour choisir sa couleur.</p></div></div>
+      </section>
+
+      <section class="sk-section">
+        <h2 class="sk-section-title">Lumières et formulaires</h2>
+        <div class="sk-grid">
+          <article class="demo-light" data-sk-brush="#f6a9c1">
+            <h3 class="sk-section-title"><span class="sk-led" style="--sk-c:#5cd9ff"></span> Écran</h3>
+            <div class="sk-encart sk-stack">
+              <div class="demo-control"><label for="brightness">Luminosité</label><input class="sk-range" id="brightness" type="range" value="72"></div>
+              <div class="demo-control"><label for="ambiance">Ambiance</label><select class="sk-select" id="ambiance"><option>Fleurs de nuit</option><option>Matin doux</option></select></div>
+              <div class="demo-flex"><span class="sk-swatch" style="--sk-c:#5cd9ff" aria-label="Couleur bleu ciel"></span><input class="sk-input" value="Bleu ciel" aria-label="Nom de la couleur"></div>
+            </div>
+          </article>
+          <article class="demo-light" data-sk-brush="#f6a9c1">
+            <h3 class="sk-section-title"><span class="sk-led" style="--sk-c:#ff68b5"></span> Bureau</h3>
+            <div class="sk-encart sk-stack">
+              <span class="demo-note">Mode automatique</span>
+              <div class="sk-seg" aria-label="Choix du mode">
+                <button type="button">☀ Jour</button><button type="button" class="is-active">☾ Nuit</button><button type="button">✦ Auto</button>
+              </div>
+              <div class="demo-control"><label for="speed">Vitesse</label><input class="sk-range" id="speed" type="range" value="38"></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="sk-section sk-stack">
+        <h2 class="sk-section-title">Conseils, boutons et confirmation</h2>
+        <aside class="sk-tip"><div class="sk-tip-body"><div class="sk-tip-title">Un peu de place ferait du bien</div><p>Tu peux libérer 12 Go sans toucher à tes jeux.</p></div><button class="sk-btn sk-btn--secondary sk-btn--small" type="button">Voir comment</button></aside>
+        <div class="sk-actions">
+          <button class="sk-btn sk-btn--primary" type="button" id="save-button">Optimiser maintenant</button>
+          <button class="sk-btn sk-btn--secondary" type="button">Plus tard</button>
+          <button class="sk-btn sk-btn--small sk-btn--secondary" type="button">Petit bouton</button>
+          <button class="sk-btn sk-btn--danger" type="button" id="confirm-button">Retirer</button>
+          <button class="sk-btn sk-btn--icon sk-btn--secondary" type="button" aria-label="Ajouter">＋</button>
+          <button class="sk-chip" type="button">Pastille</button>
+        </div>
+        <div><button class="sk-btn sk-btn--secondary sk-details-toggle" type="button" id="details-button">Détails ▾</button><div class="sk-card sk-details" id="details-panel"><strong>Ce qui est vérifié</strong><p class="demo-note">Les fichiers temporaires, la mémoire disponible et les applications actives.</p></div></div>
+      </section>
+
+      <section class="sk-section demo-chat">
+        <h2 class="sk-section-title">Mini-chat</h2>
+        <div class="sk-chat sk-card">
+          <div class="sk-msg sk-msg--sakura"><div class="sk-avatar" aria-hidden="true">🌸</div><div><div class="sk-msg-name">Sakura</div><div class="sk-bubble">Bonjour ! Je peux t’aider à rendre ton PC plus calme.</div></div></div>
+          <div class="sk-msg sk-msg--me"><div class="sk-bubble">Montre-moi ce que je peux nettoyer.</div></div>
+          <div class="sk-msg sk-msg--sakura"><div class="sk-avatar" aria-hidden="true">🌸</div><div><div class="sk-msg-name">Sakura</div><div class="sk-typing" aria-label="Sakura écrit"><i></i><i></i><i></i></div></div></div>
+        </div>
+        <div class="sk-composer"><input class="sk-input" aria-label="Ton message" placeholder="Écris ton message…"><button class="sk-btn sk-btn--primary" type="button" aria-label="Envoyer le message">↑</button></div>
+        <p class="sk-hint">Entrée pour envoyer · Sakura répond en français simple.</p>
+      </section>
+    </main>
+  </div>
+
+  <script src="sakura.js"></script>
+  <script>
+    (function () {
+      const win = document.getElementById("demo-window");
+      win.insertBefore(Sakura.titlebar({
+        title: "Kit UI Sakura",
+        actions: [{ label: "Nouvelle discussion", onClick: function () { Sakura.toast("Nouvelle discussion prête"); } }]
+      }), win.firstChild);
+
+      document.querySelectorAll(".demo-cover").forEach(function (canvas, index) {
+        const ctx = canvas.getContext("2d");
+        const pair = canvas.dataset.colors.split(",");
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, pair[0]); gradient.addColorStop(1, pair[1]);
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(255,255,255,.3)"; ctx.beginPath(); ctx.arc(32, 17, 13, 0, Math.PI * 2); ctx.fill();
+        Sakura.brush(canvas.closest("[data-sk-brush]"), { color: "auto", img: canvas, variant: index });
+      });
+
+      Sakura.tabs(document.querySelector(".sk-tabs"));
+      Sakura.details(document.getElementById("details-button"), document.getElementById("details-panel"));
+
+      document.querySelectorAll(".sk-seg").forEach(function (seg) {
+        seg.addEventListener("click", function (event) {
+          if (event.target.tagName !== "BUTTON") return;
+          seg.querySelectorAll("button").forEach(function (button) { button.classList.toggle("is-active", button === event.target); });
+        });
+      });
+
+      document.getElementById("confirm-button").addEventListener("click", async function () {
+        const accepted = await Sakura.confirm({ title: "Retirer ce jeu ?", text: "Tes fichiers restent sur le disque.", yes: "Oui, retire-le", no: "Non, laisse" });
+        Sakura.toast(accepted ? "Jeu retiré de la liste" : "Rien n’a changé", { kind: accepted ? "ok" : "warn" });
+      });
+
+      const bar = Sakura.savebar({
+        onSave: function () { bar.hide(); Sakura.toast("Tes réglages sont enregistrés"); },
+        onCancel: function () { bar.hide(); Sakura.toast("Modifications annulées", { kind: "warn" }); }
+      });
+      document.getElementById("save-button").addEventListener("click", function () { bar.show(); });
+    }());
+  </script>
+</body>
+</html>
