@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from core import paths
+from sakura_ai.history import short_title
 
 OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3:14b"
@@ -28,6 +29,47 @@ MAX_TOOL_ROUNDS = 4
 
 class OllamaError(RuntimeError):
     """Erreur présentable directement dans l'interface."""
+
+
+def _clean_title(value: str, fallback: str) -> str:
+    """Nettoie le titre rendu par Ollama et le limite à quarante caractères."""
+    filtering = ThinkFilter()
+    visible = filtering.feed(value) + filtering.finish()
+    cleaned = " ".join(visible.replace("\n", " ").split()).strip(" \t\"'«»“”")
+    cleaned = cleaned.rstrip(".。!！?？;:").strip()
+    return short_title(cleaned or fallback)
+
+
+def make_title(first_question: str, first_answer: str) -> str:
+    """Demande à Ollama un titre bref, avec repli local en cas d'échec."""
+    fallback = short_title(first_question)
+    prompt = (
+        "Donne uniquement un titre de 3 à 5 mots en français pour cette discussion, "
+        "sans guillemets ni point final.\n\n"
+        f"Question : {first_question}\nRéponse : {first_answer}"
+    )
+    payload = {
+        "model": model_name(),
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "think": False,
+    }
+    request = urllib.request.Request(
+        f"{OLLAMA_URL}/api/chat",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with _request(request, timeout=30.0) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        message = data.get("message") if isinstance(data, dict) else None
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("titre vide")
+        return _clean_title(content, fallback)
+    except (OllamaError, OSError, ValueError, TypeError, UnicodeError):
+        return fallback
 
 
 def model_name() -> str:

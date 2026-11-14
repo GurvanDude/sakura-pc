@@ -11,22 +11,29 @@
 </head>
 <body>
   <div class="sk-window" id="app-window">
-    <main class="app-content">
-      <aside id="notice" class="sk-tip" hidden>
-        <div class="sk-tip-body"><div id="notice-text" class="sk-tip-title"></div></div>
-        <button id="retry" class="sk-btn sk-btn--secondary sk-btn--small" type="button">Réessayer</button>
+    <div class="app-shell">
+      <aside id="chat-sidebar" class="chat-sidebar" aria-label="Discussions">
+        <div id="chat-confirm"></div>
+        <nav id="chat-list" class="chat-list"></nav>
       </aside>
+      <main class="app-content">
+        <aside id="notice" class="sk-tip" hidden>
+          <div class="sk-tip-body"><div id="notice-text" class="sk-tip-title"></div></div>
+          <button id="retry" class="sk-btn sk-btn--secondary sk-btn--small" type="button">Réessayer</button>
+        </aside>
 
-      <section id="conversation" class="sk-chat conversation" aria-live="polite"></section>
+        <section id="conversation" class="sk-chat conversation" aria-live="polite"></section>
 
-      <footer class="chat-footer">
-        <div class="sk-composer">
-          <textarea id="message" class="sk-input" rows="1" placeholder="Écris ton message…" aria-label="Ton message"></textarea>
-          <button id="send" class="sk-btn sk-btn--primary" type="button" aria-label="Envoyer le message">↑</button>
-        </div>
-        <p class="sk-hint">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</p>
-      </footer>
-    </main>
+        <footer class="chat-footer">
+          <div class="sk-composer">
+            <textarea id="message" class="sk-input" rows="1" placeholder="Écris ton message…" aria-label="Ton message"></textarea>
+            <button id="send" class="sk-btn sk-btn--primary" type="button" aria-label="Envoyer le message">↑</button>
+          </div>
+          <p class="sk-hint">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</p>
+        </footer>
+      </main>
+      <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="Fermer les discussions"></button>
+    </div>
   </div>
   <script src="/app.js"></script>
 </body>

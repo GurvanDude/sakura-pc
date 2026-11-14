@@ -6,7 +6,7 @@ import threading
 
 import app
 from app import Api, _serve
-from sakura_ai.history import ChatHistory
+from sakura_ai.history import ChatHistory, ChatStore
 from sakura_ai.tools import Tool
 
 
@@ -76,3 +76,27 @@ def test_confirmation_peut_etre_acceptee(sakura_home):
     )
 
     assert api._confirm(tool, {}) is True
+
+
+def test_api_refuse_de_changer_la_conversation_pendant_une_reponse(sakura_home):
+    store = ChatStore()
+    first = store.create()
+    store.append(first["id"], "user", "Première")
+    second = store.create()
+    store.append(second["id"], "user", "Deuxième")
+    api = Api(store=store, logger=logging.getLogger("sakura.ai.busy.test"))
+    api._current_id = first["id"]
+    api._busy = True
+
+    assert api.open_chat(second["id"]) == {
+        "ok": False,
+        "message": "Arrête d'abord la réponse en cours.",
+    }
+    assert api.new_chat() == {
+        "ok": False,
+        "message": "Arrête d'abord la réponse en cours.",
+    }
+    assert api.delete_chat(first["id"]) == {
+        "ok": False,
+        "message": "Arrête d'abord la réponse en cours.",
+    }
