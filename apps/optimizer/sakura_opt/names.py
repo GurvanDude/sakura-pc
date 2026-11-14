@@ -125,6 +125,7 @@ def group_apps(
         result.append({
             "name": name,
             "cpu_percent": round(cpu, 1),
+            "ram_percent": round(ram_share, 1) if total_mb else 0.0,
             "ram_gb": round(ram_gb, 1),
             "cpu_text": f"{_fr_percent(cpu)} % du processeur",
             "ram_text": f"{_fr(ram_gb)} Go de mémoire",

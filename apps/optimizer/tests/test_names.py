@@ -19,6 +19,7 @@ def test_group_apps_merges_windows_processes(monkeypatch):
     grouped = names.group_apps(status)
     windows = next(app for app in grouped if app["name"] == "Windows")
     assert windows["cpu_percent"] == 21
+    assert windows["ram_percent"] == 2.5
     assert windows["ram_gb"] == 0.4
     assert windows["cpu_text"] == "21 % du processeur"
     assert windows["ram_text"] == "0,4 Go de mémoire"
