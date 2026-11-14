@@ -9,6 +9,7 @@ import urllib.request
 import webview
 
 import lights
+from core import window as sk_window
 
 
 class WindowApi:
@@ -29,10 +30,10 @@ class WindowApi:
         if not self._window:
             return
         if self._maximized:
-            self._window.restore()
+            sk_window.restore(self._window)
             self._maximized = False
         else:
-            self._window.maximize()
+            sk_window.maximize(self._window)
             self._maximized = True
 
     def close(self):
