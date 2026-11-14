@@ -12,6 +12,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 from core import paths
 from sakura_ai import brain
@@ -19,6 +20,8 @@ from sakura_ai.history import ChatHistory
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
+UI_ROOT = (ROOT / "ui").resolve()
+DESIGN_ROOT = (REPO / "design").resolve()
 
 
 def _token(name: str, fallback: str) -> str:
@@ -50,6 +53,7 @@ class Api:
         self._chat = history or ChatHistory()
         self._logger = logger or _logger()
         self._window: Any = None
+        self._maximized = False
         self._lock = threading.Lock()
         self._busy = False
         self._stop = threading.Event()
@@ -99,6 +103,23 @@ class Api:
                 self._logger.exception("Impossible de vider la conversation")
                 return {"ok": False, "message": "La discussion n'a pas pu être effacée. Réessaie."}
         return {"ok": True}
+
+    def minimize(self) -> None:
+        if self._window is not None:
+            self._window.minimize()
+
+    def toggle_maximize(self) -> None:
+        if self._window is None:
+            return
+        if self._maximized:
+            self._window.restore()
+        else:
+            self._window.maximize()
+        self._maximized = not self._maximized
+
+    def close(self) -> None:
+        if self._window is not None:
+            self._window.destroy()
 
     def _js(self, function: str, value: str | None = None) -> None:
         if self._window is None:
@@ -152,12 +173,20 @@ def _serve() -> tuple[socketserver.ThreadingTCPServer, int]:
             super().end_headers()
 
         def translate_path(self, path: str) -> str:
-            clean = path.split("?", 1)[0].split("#", 1)[0]
-            if clean == "/tokens.css":
-                return str(REPO / "design" / "tokens.css")
-            if clean == "/logo.png":
-                return str(REPO / "design" / "logo" / "ai.png")
-            return str(ROOT / "ui" / (clean.lstrip("/") or "index.html"))
+            clean = unquote(urlsplit(path).path)
+            if clean.startswith("/design/"):
+                base = DESIGN_ROOT
+                relative = clean.removeprefix("/design/")
+            else:
+                base = UI_ROOT
+                relative = clean.lstrip("/") or "index.html"
+
+            candidate = (base / relative).resolve()
+            try:
+                candidate.relative_to(base)
+            except ValueError:
+                return str(UI_ROOT / "__not_found__")
+            return str(candidate)
 
     server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Handler)
     server.daemon_threads = True
@@ -194,6 +223,8 @@ def run(debug: bool = False) -> None:
         height=780,
         min_size=(620, 560),
         resizable=True,
+        frameless=True,
+        easy_drag=False,
         background_color=_token("night", "#140818"),
     )
     api._window = window

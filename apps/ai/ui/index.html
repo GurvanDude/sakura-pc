@@ -4,31 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sakura AI</title>
-  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/design/tokens.css">
+  <link rel="stylesheet" href="/design/ui/sakura.css">
+  <script src="/design/ui/sakura.js"></script>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="app-shell">
-    <header>
-      <div class="brand"><img src="/logo.png" alt=""><h1>Sakura AI</h1></div>
-      <button id="new-chat" class="quiet-button" type="button">Nouvelle discussion</button>
-    </header>
+  <div class="sk-window" id="app-window">
+    <main class="app-content">
+      <aside id="notice" class="sk-tip" hidden>
+        <div class="sk-tip-body"><div id="notice-text" class="sk-tip-title"></div></div>
+        <button id="retry" class="sk-btn sk-btn--secondary sk-btn--small" type="button">Réessayer</button>
+      </aside>
 
-    <section id="notice" class="notice" hidden>
-      <span id="notice-text"></span>
-      <button id="retry" type="button">Réessayer</button>
-    </section>
+      <section id="conversation" class="sk-chat conversation" aria-live="polite"></section>
 
-    <section id="conversation" class="conversation" aria-live="polite"></section>
-
-    <footer>
-      <div class="composer">
-        <textarea id="message" rows="1" placeholder="Écris ton message…" aria-label="Ton message"></textarea>
-        <button id="send" type="button">Envoyer</button>
-      </div>
-      <p>Entrée pour envoyer · Maj + Entrée pour aller à la ligne</p>
-    </footer>
-  </main>
+      <footer class="chat-footer">
+        <div class="sk-composer">
+          <textarea id="message" class="sk-input" rows="1" placeholder="Écris ton message…" aria-label="Ton message"></textarea>
+          <button id="send" class="sk-btn sk-btn--primary" type="button" aria-label="Envoyer le message">↑</button>
+        </div>
+        <p class="sk-hint">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</p>
+      </footer>
+    </main>
+  </div>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -1,8 +1,8 @@
 const $ = selector => document.querySelector(selector);
+const appWindow = $('#app-window');
 const conversation = $('#conversation');
 const input = $('#message');
 const sendButton = $('#send');
-const newChatButton = $('#new-chat');
 let answering = false;
 let currentAnswer = null;
 let followBottom = true;
@@ -40,7 +40,11 @@ function textMarkdown(text) {
     const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
     const wanted = unordered ? 'ul' : (ordered ? 'ol' : '');
     if (wanted) {
-      if (list !== wanted) { closeList(); output.push(`<${wanted}>`); list = wanted; }
+      if (list !== wanted) {
+        closeList();
+        output.push(`<${wanted}>`);
+        list = wanted;
+      }
       output.push(`<li>${inlineMarkdown((unordered || ordered)[1])}</li>`);
     } else {
       closeList();
@@ -66,18 +70,34 @@ function scrollIfNeeded(force = false) {
 }
 
 function addMessage(role, content, streaming = false) {
-  const article = document.createElement('article');
-  article.className = `message ${role}`;
-  const speaker = document.createElement('div');
-  speaker.className = 'speaker';
-  speaker.textContent = role === 'user' ? 'Gurvan' : 'Sakura';
+  const message = document.createElement('div');
   const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  article.append(speaker, bubble);
-  conversation.append(article);
-  const state = { article, bubble, content };
-  if (streaming) bubble.innerHTML = '<span class="thinking">Sakura réfléchit…</span>';
-  else bubble.innerHTML = markdown(content);
+  bubble.className = 'sk-bubble';
+
+  if (role === 'user') {
+    message.className = 'sk-msg sk-msg--me';
+    message.appendChild(bubble);
+  } else {
+    message.className = 'sk-msg sk-msg--sakura';
+    const avatar = document.createElement('div');
+    avatar.className = 'sk-avatar';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.textContent = '🌸';
+    const body = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'sk-msg-name';
+    name.textContent = 'Sakura';
+    body.append(name, bubble);
+    message.append(avatar, body);
+  }
+
+  conversation.appendChild(message);
+  const state = { message, bubble, content };
+  if (streaming) {
+    bubble.innerHTML = '<div class="sk-typing" aria-label="Sakura écrit"><i></i><i></i><i></i></div>';
+  } else {
+    bubble.innerHTML = markdown(content);
+  }
   scrollIfNeeded(true);
   return state;
 }
@@ -88,21 +108,29 @@ function showWelcome() {
 
 function setAnswering(value) {
   answering = value;
-  sendButton.textContent = value ? 'Stop' : 'Envoyer';
-  sendButton.classList.toggle('stop', value);
-  newChatButton.disabled = value;
+  sendButton.textContent = value ? '■' : '↑';
+  sendButton.setAttribute('aria-label', value ? 'Arrêter la réponse' : 'Envoyer le message');
   input.disabled = value;
   if (!value) input.focus();
 }
 
 function resizeInput() {
   input.style.height = 'auto';
-  input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
+  input.style.height = `${Math.min(input.scrollHeight + input.offsetHeight - input.clientHeight, parseFloat(getComputedStyle(input).maxHeight))}px`;
 }
 
 function showNotice(message) {
   $('#notice-text').textContent = message;
   $('#notice').hidden = false;
+}
+
+function warn(message) {
+  Sakura.toast(message, { kind: 'warn' });
+}
+
+// Prévu pour les confirmations intégrées aux bulles lors de l'étape 2.
+function askConfirm(bubble, { title, text, yes, no }) {
+  return Sakura.confirm({ into: bubble, title, text, yes, no });
 }
 
 async function checkStatus() {
@@ -132,9 +160,23 @@ async function send() {
   setAnswering(true);
   try {
     const result = await window.pywebview.api.send(text);
-    if (!result.ok) onError(result.message);
+    if (!result.ok) window.onError(result.message);
   } catch (_) {
-    onError("Sakura n'a pas pu envoyer ton message. Réessaie.");
+    window.onError("Sakura n'a pas pu envoyer ton message. Réessaie.");
+  }
+}
+
+async function newChat() {
+  try {
+    const result = await window.pywebview.api.new_chat();
+    if (!result.ok) {
+      warn(result.message);
+      return;
+    }
+    conversation.replaceChildren();
+    showWelcome();
+  } catch (_) {
+    warn("La discussion n'a pas pu être effacée. Réessaie.");
   }
 }
 
@@ -146,17 +188,23 @@ window.onChunk = chunk => {
 };
 
 window.onDone = () => {
-  if (currentAnswer && !currentAnswer.content) currentAnswer.article.remove();
+  if (currentAnswer && !currentAnswer.content) currentAnswer.message.remove();
   currentAnswer = null;
   setAnswering(false);
 };
 
 window.onError = message => {
-  if (currentAnswer && !currentAnswer.content) currentAnswer.article.remove();
+  if (currentAnswer && !currentAnswer.content) currentAnswer.message.remove();
   currentAnswer = null;
   setAnswering(false);
-  showNotice(message);
+  warn(message);
 };
+
+appWindow.insertBefore(Sakura.titlebar({
+  title: 'Sakura AI',
+  actions: [{ label: '＋ Nouvelle discussion', onClick: newChat }],
+}), appWindow.firstChild);
+Sakura.decor(appWindow, { torii: 'faint' });
 
 conversation.addEventListener('scroll', () => {
   followBottom = conversation.scrollHeight - conversation.scrollTop - conversation.clientHeight < 80;
@@ -170,13 +218,6 @@ input.addEventListener('keydown', event => {
 });
 sendButton.addEventListener('click', send);
 $('#retry').addEventListener('click', checkStatus);
-newChatButton.addEventListener('click', async () => {
-  const result = await window.pywebview.api.new_chat();
-  if (result.ok) {
-    conversation.replaceChildren();
-    showWelcome();
-  } else showNotice(result.message);
-});
 
 window.addEventListener('pywebviewready', async () => {
   try {
@@ -190,4 +231,3 @@ window.addEventListener('pywebviewready', async () => {
   input.focus();
   checkStatus();
 });
-

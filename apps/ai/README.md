@@ -1,7 +1,8 @@
 # Sakura AI
 
 Sakura AI est l'assistante locale de Sakura PC. Cette première version permet de discuter simplement avec un
-modèle Ollama dans une fenêtre Sakura. La conversation en cours reste disponible au prochain démarrage.
+modèle Ollama dans une fenêtre Sakura, disponible en thème jour ou nuit grâce au kit UI commun. La conversation
+en cours reste disponible au prochain démarrage.
 
 ## Prérequis
 
