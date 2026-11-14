@@ -30,13 +30,23 @@
         </nav>
 
         <section id="daynight" data-panel="daynight">
-          <div class="heading"><div><h2 class="sk-section-title">Jour et nuit</h2><p class="sk-sub">Choisis quand l’ambiance claire apparaît et l’image de chaque écran.</p></div></div>
+          <div class="heading"><div><h2 class="sk-section-title">Jour et nuit</h2><p class="sk-sub">Quand l’ambiance claire apparaît, et l’image de chaque écran.</p></div></div>
           <div class="sk-card hours">
-            <label>Début du jour <select class="sk-select" id="dayStart"></select></label>
-            <label>Fin du jour <select class="sk-select" id="dayEnd"></select></label>
+            <div class="hour-controls">
+              <label>Début du jour <select class="sk-select" id="dayStart"></select></label>
+              <label>Fin du jour <select class="sk-select" id="dayEnd"></select></label>
+            </div>
+            <div class="day-timeline" aria-label="Répartition du jour et de la nuit sur 24 heures">
+              <div class="day-timeline-bar" id="dayTimeline">
+                <span class="timeline-icon timeline-sun" aria-hidden="true">☀</span>
+                <span class="timeline-icon timeline-moon" aria-hidden="true">☾</span>
+              </div>
+              <div class="timeline-ticks" aria-hidden="true"><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>24 h</span></div>
+            </div>
             <p id="hoursSentence" class="explain"></p>
-            <p class="note">Tes nouvelles heures seront utilisées au prochain démarrage du Launcher.</p>
+            <p class="note">Pris en compte au prochain démarrage du launcher.</p>
           </div>
+          <div class="section-label"><span>背景</span><h3 class="sk-section-title">Images des écrans</h3></div>
           <div id="backgrounds" class="background-grid"></div>
         </section>
 
@@ -45,12 +55,12 @@
         <section id="classic" class="list-panel" data-panel="classic" hidden></section>
 
         <section id="startup" data-panel="startup" hidden>
-          <div class="heading"><div><h2 class="sk-section-title">Démarrage</h2><p class="sk-sub">Tu peux garder un démarrage calme et éviter les sons qui se superposent.</p></div></div>
+          <div class="heading"><div><h2 class="sk-section-title">Démarrage</h2><p class="sk-sub">Un démarrage calme, sans sons qui se superposent.</p></div></div>
           <div class="two-cols">
-            <div class="sk-card"><h3 class="sk-section-title">Programmes bloqués au démarrage</h3><p class="explain">En mode « coquille », le Launcher ferme temporairement ces programmes s’ils essaient de s’ouvrir seuls.</p><div id="bootBlock"></div></div>
-            <div class="sk-card"><h3 class="sk-section-title">Musique mise en pause</h3><p class="explain">Quand tu lances un jeu, ces programmes peuvent être mis en pause pour ne pas jouer par-dessus.</p><div id="pausePlaying"></div></div>
+            <div class="sk-card startup-card"><h3 class="sk-section-title">Programmes bloqués au démarrage</h3><p class="explain">Si l’un d’eux essaie de s’ouvrir tout seul, le launcher le referme.</p><div id="bootBlock"></div></div>
+            <div class="sk-card startup-card"><h3 class="sk-section-title">Musique mise en pause</h3><p class="explain">Quand tu lances un jeu, ces programmes se mettent en pause.</p><div id="pausePlaying"></div></div>
           </div>
-          <div class="sk-card music-card"><h3 class="sk-section-title">Programme de musique</h3><p class="explain">Le bouton Musique du Launcher ouvre ce programme.</p><div id="musicEditor"></div></div>
+          <div class="sk-card music-card"><h3 class="sk-section-title">Programme de musique</h3><p class="explain">Le bouton « Je suis d’humeur musicale » ouvre ce programme.</p><div id="musicEditor"></div></div>
         </section>
       </section>
     </main>
