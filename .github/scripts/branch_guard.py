@@ -3,8 +3,10 @@
 Utilisé par GitHub (à chaque push et pull request) et en local par le hook .githooks/pre-commit.
   python .github/scripts/branch_guard.py --staged        → vérifie ce qu'on s'apprête à committer
   python .github/scripts/branch_guard.py <base>          → vérifie tout ce qui diffère de <base> (ex. origin/main)
-Les sous-branches suivent leur parent : « optimizer/graphes » a les droits de « optimizer »."""
+Les sous-branches suivent leur parent : « optimizer-graphes » (ou « optimizer/graphes ») a les droits de « optimizer ».
+Récupérer main dans sa branche (git merge origin/main) est toujours permis : ces fichiers ont déjà été vérifiés."""
 import os
+import re
 import subprocess
 import sys
 
@@ -24,10 +26,20 @@ def git(*args):
     return subprocess.run(['git', *args], capture_output=True, text=True, check=True).stdout
 
 
+def merging_main():
+    """Vrai pendant la fusion de main (ou d'un de ses commits) dans la branche : rien à vérifier."""
+    if subprocess.run(['git', 'rev-parse', '-q', '--verify', 'MERGE_HEAD'], capture_output=True).returncode:
+        return False
+    for ref in ('origin/main', 'main'):
+        if subprocess.run(['git', 'merge-base', '--is-ancestor', 'MERGE_HEAD', ref], capture_output=True).returncode == 0:
+            return True
+    return False
+
+
 def main():
     branch = os.environ.get('GITHUB_HEAD_REF') or os.environ.get('GITHUB_REF_NAME') or \
         git('rev-parse', '--abbrev-ref', 'HEAD').strip()
-    project = branch.split('/', 1)[0]
+    project = re.split(r'[/-]', branch, maxsplit=1)[0]
     if project == 'main':
         # sur main on n'arrive que par fusion d'une branche déjà vérifiée ; un commit direct est refusé en local
         if sys.argv[1:] == ['--staged']:
@@ -36,6 +48,9 @@ def main():
         return
     if project not in ALLOWED:
         sys.exit(f"Branche « {branch} » inconnue : elle doit commencer par {', '.join(ALLOWED)}.")
+    if sys.argv[1:] == ['--staged'] and merging_main():
+        print(f'branche « {branch} » : récupération de main, rien à vérifier.')
+        return
     if sys.argv[1:] == ['--staged']:
         files = git('diff', '--cached', '--name-only').split()
     else:
