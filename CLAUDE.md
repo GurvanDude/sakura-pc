@@ -8,9 +8,9 @@ Garder quand même les données perso hors du dépôt (`core.paths`) pour que ce
 
 ## Règles du dépôt
 - `main` = uniquement ce qui marche. Travailler sur la branche du projet : `launcher`, `lights`, `optimizer`,
-  `ai`, `robot`, ou `shared` pour `core/`, `design/`, `docs/` et l'outillage. Sous-branches possibles (`optimizer/graphes`).
+  `ai`, `robot`, ou `shared` pour `core/`, `design/`, `docs/` et l'outillage. Sous-branches possibles avec un tiret (`optimizer-graphes`) : Git refuse `optimizer/graphes` tant que la branche `optimizer` existe. Récupérer main dans sa branche (`git merge origin/main`) est toujours permis.
 - Une branche ne modifie que son projet (`.github/scripts/branch_guard.py`). Si une appli a besoin d'un
-  changement dans `core/`, le faire d'abord sur `shared`, fusionner dans `main`, puis rebaser la branche.
+  changement dans `core/`, le faire d'abord sur `shared`, fusionner dans `main`, puis le récupérer dans la branche (`git merge origin/main`).
 - Rien de personnel dans le dépôt : tout ce qui est propre au PC passe par `core.paths` (`paths.USER`,
   `paths.CONFIG`, `paths.log()`), qui pointe vers `%APPDATA%\SakuraPC`.
 - Tenir à jour la feuille de route de l'appli dans `docs/roadmaps/` (cases cochées).
@@ -26,6 +26,11 @@ Garder quand même les données perso hors du dépôt (`core.paths`) pour que ce
 - Toute action risquée sur le PC (supprimer, désinstaller, modifier le registre ou le démarrage) :
   aperçu, confirmation, possibilité d'annuler, et journal.
 - Les apps exposent leurs fonctions comme des outils simples pour que Sakura AI puisse les appeler.
+  **Contrat entre applis : la ligne de commande JSON.** Une appli en appelle une autre en lançant sa commande
+  (`python apps/<appli>/<appli>.py <commande> --json`, avec le même Python, sans fenêtre) et en lisant le JSON
+  sur la sortie standard. Jamais d'import du code d'une autre appli : chacune reste libre de changer l'intérieur.
+  La commande garde ses champs JSON stables (on ajoute des champs, on n'en retire pas) et l'appli les décrit dans
+  son README. Exemples : `optimizer.py monitor --json` (une mesure), `optimizer.py diagnose --json` (« pourquoi ça rame ? »).
 
 ## Répartition Claude / Codex (garder des crédits Claude)
 - **Objectif :** quand les crédits Codex sont épuisés, il doit rester environ **80 % des crédits Claude** pour les
