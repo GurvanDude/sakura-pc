@@ -72,7 +72,9 @@ function scrollIfNeeded(force = false) {
 function addMessage(role, content, streaming = false) {
   const message = document.createElement('div');
   const bubble = document.createElement('div');
+  const answer = document.createElement('div');
   bubble.className = 'sk-bubble';
+  bubble.appendChild(answer);
 
   if (role === 'user') {
     message.className = 'sk-msg sk-msg--me';
@@ -92,11 +94,11 @@ function addMessage(role, content, streaming = false) {
   }
 
   conversation.appendChild(message);
-  const state = { message, bubble, content };
+  const state = { message, bubble, answer, content, hasExtras: false };
   if (streaming) {
-    bubble.innerHTML = '<div class="sk-typing" aria-label="Sakura écrit"><i></i><i></i><i></i></div>';
+    answer.innerHTML = '<div class="sk-typing" aria-label="Sakura écrit"><i></i><i></i><i></i></div>';
   } else {
-    bubble.innerHTML = markdown(content);
+    answer.innerHTML = markdown(content);
   }
   scrollIfNeeded(true);
   return state;
@@ -183,18 +185,51 @@ async function newChat() {
 window.onChunk = chunk => {
   if (!currentAnswer) currentAnswer = addMessage('assistant', '', true);
   currentAnswer.content += chunk;
-  currentAnswer.bubble.innerHTML = markdown(currentAnswer.content);
+  currentAnswer.answer.innerHTML = markdown(currentAnswer.content);
   scrollIfNeeded();
 };
 
+window.onConfirm = async (id, opts) => {
+  if (!currentAnswer) currentAnswer = addMessage('assistant', '', true);
+  currentAnswer.hasExtras = true;
+  scrollIfNeeded(true);
+  let accepted = false;
+  try {
+    accepted = await askConfirm(currentAnswer.bubble, opts);
+  } finally {
+    try {
+      await window.pywebview.api.answer_confirm(id, accepted);
+    } catch (_) {
+      // Le fil Python peut déjà avoir été arrêté.
+    }
+  }
+};
+
+window.onCancelConfirm = () => {
+  const cancel = currentAnswer?.bubble.querySelector('.sk-confirm .sk-btn--secondary');
+  if (cancel) cancel.click();
+};
+
+window.onAction = text => {
+  if (!currentAnswer) currentAnswer = addMessage('assistant', '', true);
+  const line = document.createElement('p');
+  line.className = 'sk-hint';
+  line.textContent = `✦ ${text}`;
+  currentAnswer.bubble.appendChild(line);
+  currentAnswer.hasExtras = true;
+  scrollIfNeeded(true);
+};
+
 window.onDone = () => {
-  if (currentAnswer && !currentAnswer.content) currentAnswer.message.remove();
+  if (currentAnswer && !currentAnswer.content && !currentAnswer.hasExtras) currentAnswer.message.remove();
+  else if (currentAnswer && !currentAnswer.content) currentAnswer.answer.remove();
   currentAnswer = null;
   setAnswering(false);
 };
 
 window.onError = message => {
-  if (currentAnswer && !currentAnswer.content) currentAnswer.message.remove();
+  if (currentAnswer && !currentAnswer.content && !currentAnswer.hasExtras) currentAnswer.message.remove();
+  else if (currentAnswer && !currentAnswer.content) currentAnswer.answer.remove();
   currentAnswer = null;
   setAnswering(false);
   warn(message);

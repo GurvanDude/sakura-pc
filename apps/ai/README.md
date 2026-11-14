@@ -4,6 +4,18 @@ Sakura AI est l'assistante locale de Sakura PC. Cette première version permet d
 modèle Ollama dans une fenêtre Sakura, disponible en thème jour ou nuit grâce au kit UI commun. La conversation
 en cours reste disponible au prochain démarrage.
 
+## Ce que Sakura sait faire
+
+En plus de répondre aux messages, Sakura peut maintenant utiliser des outils locaux pour :
+
+- ouvrir une application ou un jeu enregistré dans Sakura Launcher ;
+- lister les applications et les jeux disponibles ;
+- régler le volume général ou couper le son ;
+- chercher un fichier par son nom dans les dossiers personnels ;
+- fermer une application, uniquement après une confirmation dans la conversation.
+
+Les actions et les confirmations sont journalisées sans enregistrer le contenu des messages.
+
 ## Prérequis
 
 - Python 3.13 ;

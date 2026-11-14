@@ -29,6 +29,40 @@ def ndjson(content="", done=False):
     return (json.dumps({"message": {"content": content}, "done": done}) + "\n").encode()
 
 
+def ndjson_tool(name, arguments, done=True):
+    return (json.dumps({
+        "message": {"content": "", "tool_calls": [{"function": {"name": name, "arguments": arguments}}]},
+        "done": done,
+    }) + "\n").encode()
+
+
+class FakeTool:
+    def __init__(self, risky=False):
+        self.risky = risky
+
+
+class FakeTools:
+    def __init__(self, risky=False, on_run=None):
+        self.tool = FakeTool(risky)
+        self.calls = []
+        self.on_run = on_run
+
+    def schemas(self):
+        return [{"type": "function", "function": {"name": "demo", "description": "Démo", "parameters": {"type": "object"}}}]
+
+    def get(self, name):
+        return self.tool if name == "demo" else None
+
+    def run(self, name, args):
+        self.calls.append((name, args))
+        if self.on_run:
+            self.on_run()
+        return {"ok": True, "message": "fait"}
+
+    def describe(self, name, args):
+        return f"Action {args.get('value')}"
+
+
 def test_filtre_think_avec_balises_coupees():
     filtering = brain.ThinkFilter()
     visible = [
@@ -122,4 +156,72 @@ def test_conversation_limitee_aux_derniers_messages():
     assert len(trimmed) == 31
     assert trimmed[0]["role"] == "system"
     assert trimmed[1]["content"] == "10"
+
+
+def test_boucle_outil_puis_reponse(monkeypatch, sakura_home):
+    responses = iter([
+        FakeResponse([ndjson_tool("demo", {"value": 7})]),
+        FakeResponse([ndjson("C'est fait.", done=True)]),
+    ])
+    requests = []
+
+    def fake_urlopen(request, **_kwargs):
+        requests.append(json.loads(request.data))
+        return next(responses)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    tools = FakeTools()
+    actions = []
+    result = brain.chat_stream([], lambda _text: None, threading.Event(), tools, lambda *_args: True, actions.append)
+
+    assert result == "C'est fait."
+    assert tools.calls == [("demo", {"value": 7})]
+    assert actions == ["Action 7"]
+    assert requests[0]["tools"] == tools.schemas()
+    assert requests[1]["messages"][-1] == {
+        "role": "tool", "tool_name": "demo", "content": '{"ok": true, "message": "fait"}',
+    }
+
+
+def test_outil_risque_refuse(monkeypatch, sakura_home):
+    responses = iter([
+        FakeResponse([ndjson_tool("demo", {"value": 1})]),
+        FakeResponse([ndjson("D'accord, je le laisse ouvert.", done=True)]),
+    ])
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: next(responses))
+    tools = FakeTools(risky=True)
+
+    result = brain.chat_stream([], lambda _text: None, threading.Event(), tools, lambda *_args: False)
+
+    assert result == "D'accord, je le laisse ouvert."
+    assert tools.calls == []
+
+
+def test_limite_de_quatre_tours_outils(monkeypatch, sakura_home):
+    responses = iter(FakeResponse([ndjson_tool("demo", {"value": index})]) for index in range(5))
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: next(responses))
+    tools = FakeTools()
+    chunks = []
+
+    result = brain.chat_stream([], chunks.append, threading.Event(), tools, lambda *_args: True)
+
+    assert len(tools.calls) == 4
+    assert "limite de quatre tours" in result
+
+
+def test_stop_interrompt_aussi_la_boucle_outils(monkeypatch, sakura_home):
+    stop = threading.Event()
+    opened = 0
+
+    def fake_urlopen(*_args, **_kwargs):
+        nonlocal opened
+        opened += 1
+        return FakeResponse([ndjson_tool("demo", {})])
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    tools = FakeTools(on_run=stop.set)
+    brain.chat_stream([], lambda _text: None, stop, tools, lambda *_args: True)
+
+    assert opened == 1
+    assert len(tools.calls) == 1
 

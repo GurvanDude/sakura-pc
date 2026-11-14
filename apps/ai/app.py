@@ -18,11 +18,13 @@ from core import paths
 from core import window as sk_window
 from sakura_ai import brain
 from sakura_ai.history import ChatHistory
+from sakura_ai.tools import Tool, ToolRegistry
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
 UI_ROOT = (ROOT / "ui").resolve()
 DESIGN_ROOT = (REPO / "design").resolve()
+CONFIRM_TIMEOUT = 120.0
 
 
 def _token(name: str, fallback: str) -> str:
@@ -58,6 +60,9 @@ class Api:
         self._lock = threading.Lock()
         self._busy = False
         self._stop = threading.Event()
+        self._tools = ToolRegistry(logger=self._logger)
+        self._confirmations: dict[str, dict[str, Any]] = {}
+        self._confirm_sequence = 0
 
     def status(self) -> dict[str, Any]:
         ok, message = brain.is_ready()
@@ -92,6 +97,20 @@ class Api:
 
     def stop(self) -> dict[str, bool]:
         self._stop.set()
+        with self._lock:
+            for pending in self._confirmations.values():
+                pending["event"].set()
+        self._js("onCancelConfirm")
+        return {"ok": True}
+
+    def answer_confirm(self, confirmation_id: str, accepted: bool) -> dict[str, bool]:
+        """Reçoit la réponse d'une confirmation intégrée à la bulle."""
+        with self._lock:
+            pending = self._confirmations.get(str(confirmation_id))
+            if pending is None:
+                return {"ok": False}
+            pending["accepted"] = bool(accepted)
+            pending["event"].set()
         return {"ok": True}
 
     def new_chat(self) -> dict[str, Any]:
@@ -122,11 +141,51 @@ class Api:
         if self._window is not None:
             self._window.destroy()
 
-    def _js(self, function: str, value: str | None = None) -> None:
+    def _js(self, function: str, *values: Any) -> None:
         if self._window is None:
             return
-        argument = "" if value is None else json.dumps(value, ensure_ascii=False)
-        self._window.evaluate_js(f"{function}({argument})")
+        arguments = ", ".join(json.dumps(value, ensure_ascii=False) for value in values)
+        self._window.evaluate_js(f"{function}({arguments})")
+
+    def _confirm(self, tool: Tool, args: dict[str, Any]) -> bool:
+        """Affiche la confirmation et attend sa réponse sans bloquer l'interface."""
+        if tool.confirm_text is None or self._stop.is_set():
+            return False
+        with self._lock:
+            self._confirm_sequence += 1
+            confirmation_id = str(self._confirm_sequence)
+            pending = {"event": threading.Event(), "accepted": None}
+            self._confirmations[confirmation_id] = pending
+        self._js("onConfirm", confirmation_id, tool.confirm_text(args))
+        deadline = time.monotonic() + CONFIRM_TIMEOUT
+        while not self._stop.is_set() and time.monotonic() < deadline:
+            if pending["event"].wait(min(0.1, max(0.0, deadline - time.monotonic()))):
+                break
+        with self._lock:
+            self._confirmations.pop(confirmation_id, None)
+        accepted = bool(pending["accepted"]) and not self._stop.is_set()
+        if pending["accepted"] is None:
+            decision = "délai" if not self._stop.is_set() else "arrêt"
+            self._js("onCancelConfirm")
+        else:
+            decision = "oui" if accepted else "non"
+        self._logger.info(
+            "Confirmation %s outil=%s args=%s",
+            decision,
+            tool.name,
+            json.dumps(args, ensure_ascii=False),
+        )
+        if not accepted:
+            self._logger.error(
+                "Outil %s args=%s résultat=%s",
+                tool.name,
+                json.dumps(args, ensure_ascii=False),
+                json.dumps({"ok": False, "message": "Gurvan a refusé."}, ensure_ascii=False),
+            )
+        return accepted
+
+    def _on_action(self, text: str) -> None:
+        self._js("onAction", text)
 
     def _answer(self, messages: list[dict[str, str]]) -> None:
         started = time.monotonic()
@@ -147,7 +206,14 @@ class Api:
 
         answer = ""
         try:
-            answer = brain.chat_stream(messages, receive, self._stop)
+            answer = brain.chat_stream(
+                messages,
+                receive,
+                self._stop,
+                tools=self._tools,
+                confirm=self._confirm,
+                on_action=self._on_action,
+            )
             flush()
             if answer:
                 self._chat.append("assistant", answer)
