@@ -67,3 +67,32 @@ def test_studio_uses_sakura_kit_and_window_api():
     assert 'frameless=True' in studio
     assert 'easy_drag=False' in studio
     assert 'js_api=api' in studio
+
+
+def test_guard_restarts_service_that_died_after_cancelled_shutdown(lights_module):
+    states = iter([True, False])
+    restarts = []
+    assert lights_module.guard(1, alive=lambda pid: next(states), restart=lambda: restarts.append(1),
+                               sleep=lambda s: None, seconds=60) is True
+    assert restarts == [1]
+
+
+def test_guard_leaves_running_service_alone(lights_module):
+    restarts = []
+    assert lights_module.guard(1, alive=lambda pid: True, restart=lambda: restarts.append(1),
+                               sleep=lambda s: None, seconds=60) is False
+    assert restarts == []
+
+
+def test_park_starts_guard_once(lights_module, monkeypatch):
+    started = []
+    monkeypatch.setattr(lights_module, 'start_guard', started.append)
+    controller = lights_module.Lights()
+    controller.park()
+    controller.park()
+    assert len(started) == 1
+
+
+def test_process_alive_sees_itself(lights_module):
+    import os
+    assert lights_module.process_alive(os.getpid()) is True
