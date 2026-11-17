@@ -138,12 +138,24 @@
           </div>
           <button class="sk-btn sk-btn--primary" id="cleanup-apply" type="button" hidden>Libérer 0 octet</button>
         </section>
+        <section class="sk-section cleanup-page startup-section" aria-labelledby="startup-title">
+          <h2 class="sk-section-title" id="startup-title">Au démarrage de Windows</h2>
+          <p class="sk-sub">Moins de programmes au démarrage = un bureau prêt plus vite. Tout ce que je coupe se remet en un clic.</p>
+          <p class="sk-sub startup-launcher-info">Les applis lancées par Sakura Launcher lui-même se règlent dans Sakura Launcher › Réglages › Démarrage.</p>
+          <div class="sk-card sk-stack startup-list" id="startup-list">
+            <p class="sk-sub">Je regarde les programmes de démarrage…</p>
+          </div>
+          <button class="sk-details-toggle" id="startup-details-button" type="button" aria-expanded="false">Détails ▾</button>
+          <div class="sk-details" id="startup-details" hidden>
+            <div class="sk-card sk-stack startup-list" id="startup-readonly"></div>
+          </div>
+        </section>
       </div>
 
       <div data-panel="actions" hidden>
         <section class="sk-section actions-page">
           <h1 class="sk-title">Ce que j'ai fait</h1>
-          <p class="sk-sub">Tu peux remettre ce qui est encore dans la quarantaine.</p>
+          <p class="sk-sub">Tu peux remettre ce qui est encore dans la quarantaine ou au démarrage.</p>
           <div class="sk-card sk-stack actions-list" id="actions-list">
             <p class="sk-sub">Je regarde le journal…</p>
           </div>

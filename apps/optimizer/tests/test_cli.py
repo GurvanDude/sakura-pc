@@ -43,3 +43,15 @@ def test_commandes_menage_actions_et_annulation():
     assert apply.apply == 'temp,plantages' and apply.json is True
     assert actions.command == 'actions' and actions.json is True
     assert undo.command == 'undo' and undo.id == 'abc123' and undo.json is True
+
+
+def test_commande_startup_liste_coupe_et_remet():
+    parser = build_parser()
+
+    listing = parser.parse_args(['startup', '--json'])
+    disable = parser.parse_args(['startup', '--disable', 'run-123', '--json'])
+    enable = parser.parse_args(['startup', '--enable', 'run-123'])
+
+    assert listing.command == 'startup' and listing.json is True
+    assert disable.disable == 'run-123' and disable.json is True
+    assert enable.enable == 'run-123'

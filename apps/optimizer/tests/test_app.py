@@ -62,6 +62,17 @@ class FakeActions:
         return {"ok": True, "octets": 12}
 
 
+class FakeStartup:
+    def list_entries(self):
+        return [{"id": "run-1", "nom": "Steam", "etat": "actif"}]
+
+    def disable(self, identifier):
+        return {"ok": True, "id": identifier, "message": "Entrée coupée."}
+
+    def enable(self, identifier):
+        return {"ok": True, "id": identifier, "message": "Entrée remise."}
+
+
 def test_free_space_utilise_l_ouvreur_injecte(tmp_path):
     opened = []
     api = Api(FakeMonitor(), theme_path=tmp_path / "theme.json", opener=opened.append)
@@ -109,7 +120,7 @@ def test_get_history_renvoie_les_series_et_la_vue(tmp_path):
 def test_api_menage_et_actions_sont_injectables(tmp_path):
     api = Api(
         FakeMonitor(), theme_path=tmp_path / "theme.json",
-        cleanup=FakeCleanup(), action_manager=FakeActions(),
+        cleanup=FakeCleanup(), action_manager=FakeActions(), startup=FakeStartup(),
     )
 
     assert api.cleanup_scan()["taille_totale"] == 12
@@ -117,6 +128,9 @@ def test_api_menage_et_actions_sont_injectables(tmp_path):
     assert api.actions()["quarantaine"]["disque"] == "D:"
     assert api.undo("action-1")["ok"] is True
     assert api.purge_quarantine()["ok"] is True
+    assert api.startup_list()["entries"][0]["id"] == "run-1"
+    assert api.startup_disable("run-1")["ok"] is True
+    assert api.startup_enable("run-1")["ok"] is True
 
 
 def test_fenetre_n_enregistre_pas_si_mutex_deja_pris():
@@ -147,7 +161,7 @@ def test_theme_par_defaut_suit_les_horaires_du_launcher(tmp_path):
 def local_server(tmp_path):
     api = Api(
         FakeMonitor(), theme_path=tmp_path / "theme.json", history=FakeHistory(),
-        cleanup=FakeCleanup(), action_manager=FakeActions(),
+        cleanup=FakeCleanup(), action_manager=FakeActions(), startup=FakeStartup(),
     )
     server, port = _serve(api)
     try:
@@ -176,6 +190,9 @@ def test_server_sert_le_kit_et_la_vue_json(local_server):
     with urlopen(local_server + "/api/actions") as response:
         actions = json.load(response)
     assert actions["actions"][0]["id"] == "action-1"
+    with urlopen(local_server + "/api/startup") as response:
+        startup = json.load(response)
+    assert startup["entries"][0]["id"] == "run-1"
 
 
 @pytest.mark.parametrize(

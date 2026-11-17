@@ -51,6 +51,11 @@ def build_parser():
     undo = subparsers.add_parser('undo', help='Annule une action encore en quarantaine.')
     undo.add_argument('id', help="Identifiant de l'action.")
     undo.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
+    startup = subparsers.add_parser('startup', help='Affiche ou règle le démarrage de Windows.')
+    startup_mode = startup.add_mutually_exclusive_group()
+    startup_mode.add_argument('--disable', metavar='ID', help='Coupe cette entrée au démarrage.')
+    startup_mode.add_argument('--enable', metavar='ID', help='Remet cette entrée au démarrage.')
+    startup.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
     return parser
 
 
@@ -158,6 +163,22 @@ def main():
             print(f"{result.get('restaures', 0)} fichier(s) remis en place." if result.get('ok')
                   else result.get('erreur', "L'action n'a pas pu être annulée."))
         return 0 if result.get('ok') else 1
+    if args.command == 'startup':
+        from sakura_opt.startup import disable, enable, list_entries
+        result = disable(args.disable) if args.disable else (
+            enable(args.enable) if args.enable else {"entries": list_entries()}
+        )
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        elif args.disable or args.enable:
+            print(result.get('message') if result.get('ok') else result.get('erreur'))
+        else:
+            for entry in result['entries']:
+                editor = f" · {entry['editeur']}" if entry['editeur'] else ''
+                reason = f" · {entry['raison']}" if entry['raison'] else ''
+                print(f"{entry['id']} · {entry['nom']}{editor} · {entry['etat']} · "
+                      f"{entry['source']}{reason}")
+        return 0 if result.get('ok', True) else 1
     return 0
 
 

@@ -27,6 +27,7 @@ from sakura_opt.names import add_friendly_names
 from sakura_opt.sensors import Sampler
 from sakura_opt.actions import ActionManager
 from sakura_opt.cleanup import Cleanup
+from sakura_opt.startup import Startup
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
@@ -146,6 +147,7 @@ class Api:
         history: History | None = None,
         cleanup: Cleanup | None = None,
         action_manager: ActionManager | None = None,
+        startup: Startup | None = None,
     ) -> None:
         self._monitor = monitor
         self._window: Any | None = None
@@ -156,6 +158,7 @@ class Api:
         self._history = history or History()
         self._actions = action_manager or ActionManager()
         self._cleanup = cleanup or Cleanup(self._actions)
+        self._startup = startup or Startup(self._actions)
         self._workers = ThreadPoolExecutor(max_workers=2, thread_name_prefix="optimizer-actions")
         self._preferences_lock = threading.Lock()
 
@@ -269,6 +272,15 @@ class Api:
     def empty_quarantine(self) -> dict[str, Any]:
         return self._workers.submit(self._actions.empty).result()
 
+    def startup_list(self) -> dict[str, Any]:
+        return {"entries": self._startup.list_entries()}
+
+    def startup_disable(self, identifier: str) -> dict[str, Any]:
+        return self._workers.submit(self._startup.disable, identifier).result()
+
+    def startup_enable(self, identifier: str) -> dict[str, Any]:
+        return self._workers.submit(self._startup.enable, identifier).result()
+
 
 def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
     routes = {
@@ -319,6 +331,11 @@ def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
                 return
             if request_path == "/api/actions":
                 payload = json.dumps(api.actions(), ensure_ascii=False).encode("utf-8")
+                self._headers(200, "application/json; charset=utf-8", len(payload))
+                self.wfile.write(payload)
+                return
+            if request_path == "/api/startup":
+                payload = json.dumps(api.startup_list(), ensure_ascii=False).encode("utf-8")
                 self._headers(200, "application/json; charset=utf-8", len(payload))
                 self.wfile.write(payload)
                 return

@@ -22,12 +22,14 @@
     onClose: () => { if (api()) api().close(); }
   }), shell.firstChild);
   Sakura.details($('#details-button'), $('#details'));
+  Sakura.details($('#startup-details-button'), $('#startup-details'));
   Sakura.init();
   let appBridge = null;
   let cleanupCategories = [];
 
   Sakura.tabs($('#optimizer-tabs'), tab => {
     if (tab === 'actions') refreshActions();
+    if (tab === 'cleanup') refreshStartup();
   });
 
   function formatSize(bytes) {
@@ -99,6 +101,72 @@
     }
   }
 
+  function createStartupRow(entry, readOnly = false) {
+    const warn = entry.recommandation && entry.recommandation.niveau === 'inutile';
+    const row = make('article', 'sk-row startup-entry' + (warn ? ' is-warn' : ''));
+    const main = make('div', 'sk-row-main');
+    const title = make('div', 'sk-row-title');
+    const detail = make('div', 'sk-row-sub');
+    title.textContent = entry.nom || 'Programme';
+    const recommendation = entry.recommandation ? entry.recommandation.texte : '';
+    detail.textContent = [entry.editeur, recommendation, readOnly ? entry.raison : '']
+      .filter(Boolean).join(' · ');
+    main.append(title, detail);
+    const end = make('div', 'startup-state');
+    const state = make('span', 'sk-stat-state' + (warn ? ' is-warn' : ' is-ok'));
+    state.textContent = entry.etat;
+    end.append(state);
+    const canChange = entry.modifiable
+      && (!entry.recommandation || entry.recommandation.niveau !== 'a_garder');
+    if (canChange) {
+      const button = make('button', 'sk-btn sk-btn--secondary sk-btn--small');
+      button.type = 'button';
+      button.textContent = entry.etat === 'actif' ? 'Couper' : 'Remettre';
+      button.addEventListener('click', () => changeStartup(entry));
+      end.append(button);
+    }
+    row.append(main, end);
+    return row;
+  }
+
+  async function refreshStartup() {
+    try {
+      const payload = appBridge ? await appBridge.startup_list()
+        : await fetch('/api/startup', { cache: 'no-store' }).then(response => response.json());
+      const entries = Array.isArray(payload.entries) ? payload.entries : [];
+      const editable = entries.filter(entry => entry.modifiable);
+      const readOnly = entries.filter(entry => !entry.modifiable);
+      const empty = make('p', 'sk-sub');
+      empty.textContent = 'Aucun programme trouvé.';
+      $('#startup-list').replaceChildren(...(editable.length
+        ? editable.map(entry => createStartupRow(entry)) : [empty]));
+      $('#startup-readonly').replaceChildren(...readOnly.map(entry => createStartupRow(entry, true)));
+      $('#startup-details-button').hidden = readOnly.length === 0;
+    } catch (_) {
+      const message = make('p', 'sk-sub');
+      message.textContent = 'Je n’arrive pas à lire le démarrage pour le moment.';
+      $('#startup-list').replaceChildren(message);
+    }
+  }
+
+  async function changeStartup(entry) {
+    if (!appBridge) return;
+    const cutting = entry.etat === 'actif';
+    const confirmed = await Sakura.confirm({
+      title: (cutting ? 'Couper ' : 'Remettre ') + entry.nom + ' au démarrage ?',
+      text: cutting ? entry.recommandation.texte : 'Le programme se lancera de nouveau avec Windows.',
+      yes: cutting ? 'Oui, coupe ' + entry.nom + ' au démarrage' : 'Oui, remets ' + entry.nom,
+      no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    const result = cutting
+      ? await appBridge.startup_disable(entry.id) : await appBridge.startup_enable(entry.id);
+    Sakura.toast(result.message || result.erreur || 'Modification terminée.',
+      { kind: result.ok ? 'ok' : 'warn' });
+    await refreshStartup();
+    refreshActions();
+  }
+
   async function refreshActions() {
     try {
       const payload = appBridge ? await appBridge.actions()
@@ -117,14 +185,16 @@
           const detail = make('div', 'sk-row-sub');
           title.textContent = action.resume || action['résumé'] || 'Action';
           const date = new Date(action.date);
+          const size = action.type === 'demarrage' ? ''
+            : ' · ' + formatSize(action.place_gagnee || action['place gagnée']);
           detail.textContent = (Number.isNaN(date.getTime()) ? action.date : date.toLocaleString('fr-FR'))
-            + ' · ' + formatSize(action.place_gagnee || action['place gagnée']) + ' · ' + (action.etat || action['état']);
+            + size + ' · ' + (action.etat || action['état']);
           main.append(title, detail);
           row.append(main);
           if (action.annulable && (action.etat || action['état']) === 'fait') {
             const button = make('button', 'sk-btn sk-btn--secondary sk-btn--small');
             button.type = 'button';
-            button.textContent = 'Annuler';
+            button.textContent = action.type === 'demarrage' ? 'Remettre' : 'Annuler';
             button.addEventListener('click', () => undoAction(action.id, title.textContent));
             row.append(button);
           }
@@ -144,16 +214,19 @@
 
   async function undoAction(identifier, summary) {
     if (!appBridge) return;
+    const startupAction = summary.toLocaleLowerCase('fr-FR').includes('démarrage');
     const confirmed = await Sakura.confirm({
-      title: 'Remettre ces fichiers ?',
-      text: summary + ' sera annulé et les fichiers retourneront à leur place.',
-      yes: 'Oui, remets-les', no: 'Non, laisse'
+      title: startupAction ? 'Remettre ce programme au démarrage ?' : 'Remettre ces fichiers ?',
+      text: startupAction ? summary + ' sera annulé.'
+        : summary + ' sera annulé et les fichiers retourneront à leur place.',
+      yes: startupAction ? 'Oui, remets-le' : 'Oui, remets-les', no: 'Non, laisse'
     });
     if (!confirmed) return;
     const result = await appBridge.undo(identifier);
-    Sakura.toast(result.ok ? Number(result.restaures).toLocaleString('fr-FR') + ' fichier(s) remis en place.'
+    Sakura.toast(result.ok ? (result.message || Number(result.restaures).toLocaleString('fr-FR') + ' fichier(s) remis en place.')
       : (result.erreur || 'Je n’ai pas pu annuler cette action.'), { kind: result.ok ? 'ok' : 'warn' });
     refreshActions();
+    refreshStartup();
   }
 
   const verdicts = {

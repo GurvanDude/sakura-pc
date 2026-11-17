@@ -128,6 +128,7 @@ class ActionManager:
         self.logger = logging.getLogger("sakura.optimizer.actions")
         self.logger.addHandler(logging.NullHandler())
         self._lock = threading.RLock()
+        self._undo_handlers: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {}
 
     def _log(self, level: int, message: str, *args: Any) -> None:
         """Écrit puis ferme aussitôt le fichier, pour ne jamais le garder verrouillé."""
@@ -177,6 +178,34 @@ class ActionManager:
 
     def list_actions(self) -> list[dict[str, Any]]:
         return list(reversed(self._read()))
+
+    def register_undo_handler(
+        self, action_type: str, handler: Callable[[dict[str, Any]], dict[str, Any]]
+    ) -> None:
+        """Branche l'annulation d'une action qui ne passe pas par la quarantaine."""
+        self._undo_handlers[action_type] = handler
+
+    def record_startup(self, *, summary: str, startup: dict[str, Any]) -> dict[str, Any]:
+        """Journalise une modification du démarrage, conservée sans limite de temps."""
+        row = {
+            "id": uuid.uuid4().hex,
+            "date": self._date(),
+            "type": "demarrage",
+            "resume": summary,
+            "résumé": summary,
+            "elements": [],
+            "éléments": [],
+            "place_gagnee": 0,
+            "place gagnée": 0,
+            "etat": "fait",
+            "état": "fait",
+            "ignores": 0,
+            "refuses": 0,
+            "annulable": True,
+            "demarrage": startup,
+        }
+        self._append(row)
+        return row
 
     def _date(self) -> str:
         return dt.datetime.fromtimestamp(self.now(), dt.timezone.utc).isoformat()
@@ -295,6 +324,22 @@ class ActionManager:
             return {"ok": False, "erreur": "Action introuvable."}
         if row.get("etat", row.get("état")) != "fait" or not row.get("annulable"):
             return {"ok": False, "erreur": "Cette action ne peut pas être annulée."}
+        handler = self._undo_handlers.get(str(row.get("type", "")))
+        if row.get("type") == "demarrage" and handler is None:
+            return {"ok": False, "erreur": "Le service de démarrage n'est pas disponible."}
+        if handler is not None:
+            try:
+                result = handler(dict(row.get("demarrage") or {}))
+            except Exception as exc:
+                self._log(logging.WARNING, "Annulation impossible pour %s : %s", identifier, exc)
+                return {"ok": False, "erreur": "Windows a refusé la remise au démarrage."}
+            if not result.get("ok"):
+                return result
+            row["etat"] = row["état"] = "annulé"
+            row["annulable"] = False
+            self._write_all(rows)
+            self._log(logging.INFO, "%s annulée : démarrage remis", identifier)
+            return {**result, "action": row}
         restored = 0
         skipped = 0
         for element in row.get("elements", row.get("éléments", [])):
@@ -325,6 +370,8 @@ class ActionManager:
         purged = 0
         freed = 0
         for row in rows:
+            if row.get("type") == "demarrage":
+                continue
             if row.get("etat", row.get("état")) != "fait" or not row.get("elements", row.get("éléments")):
                 continue
             try:

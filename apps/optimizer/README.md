@@ -97,6 +97,26 @@ python optimizer.py actions --json
 python optimizer.py undo <id> --json
 ```
 
+## Démarrage de Windows
+
+Dans l'onglet **Ménage**, la section **Au démarrage de Windows** montre les programmes lancés avec Windows.
+Une entrée de ton compte peut être coupée puis remise en un clic. Pour que cela fonctionne aussi quand Sakura
+Launcher remplace le bureau Windows, une entrée `Run` coupée est retirée du Registre et sa commande exacte est
+gardée dans le journal. Les raccourcis sont rangés dans `%APPDATA%\SakuraPC\demarrage_coupe`, hors de la
+quarantaine, et les applications du Store retrouvent leur état précédent lors de la remise.
+
+Les réglages communs à tous les comptes restent en lecture seule : l'Optimizer ne demande jamais les droits
+administrateur. Les applications lancées par Sakura Launcher se règlent dans **Sakura Launcher › Réglages ›
+Démarrage**.
+
+Commandes prévues pour Sakura AI :
+
+```powershell
+python optimizer.py startup --json
+python optimizer.py startup --disable <id> --json
+python optimizer.py startup --enable <id> --json
+```
+
 ## Outil technique
 
 Le moniteur terminal reste disponible pour le diagnostic technique :
