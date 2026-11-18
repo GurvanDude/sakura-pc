@@ -73,6 +73,28 @@ class FakeStartup:
         return {"ok": True, "id": identifier, "message": "Entrée remise."}
 
 
+class FakeDuplicates:
+    def __init__(self):
+        self.last_result = {
+            "groups": [{"id": "double-1", "copies": []}],
+            "fichiers_regardes": 2, "gain_total": 12,
+        }
+
+    def scan(self, progress=None, cancel=None):
+        if progress:
+            progress(2)
+        return self.last_result
+
+    def apply(self, selection):
+        return {"ok": True, "selection": list(selection)}
+
+    def open_folder(self, path):
+        return {"ok": path == "vu.txt"}
+
+    def exclude_folder(self, path):
+        return {"ok": True, "dossier": path}
+
+
 def test_free_space_utilise_l_ouvreur_injecte(tmp_path):
     opened = []
     api = Api(FakeMonitor(), theme_path=tmp_path / "theme.json", opener=opened.append)
@@ -121,6 +143,7 @@ def test_api_menage_et_actions_sont_injectables(tmp_path):
     api = Api(
         FakeMonitor(), theme_path=tmp_path / "theme.json",
         cleanup=FakeCleanup(), action_manager=FakeActions(), startup=FakeStartup(),
+        duplicates=FakeDuplicates(),
     )
 
     assert api.cleanup_scan()["taille_totale"] == 12
@@ -131,6 +154,10 @@ def test_api_menage_et_actions_sont_injectables(tmp_path):
     assert api.startup_list()["entries"][0]["id"] == "run-1"
     assert api.startup_disable("run-1")["ok"] is True
     assert api.startup_enable("run-1")["ok"] is True
+    assert api.duplicates_result()["gain_total"] == 12
+    assert api.duplicates_apply(["vu.txt"])["selection"] == ["vu.txt"]
+    assert api.open_folder("hors.txt")["ok"] is False
+    assert api.exclude_folder("dossier")["ok"] is True
 
 
 def test_fenetre_n_enregistre_pas_si_mutex_deja_pris():
@@ -162,6 +189,7 @@ def local_server(tmp_path):
     api = Api(
         FakeMonitor(), theme_path=tmp_path / "theme.json", history=FakeHistory(),
         cleanup=FakeCleanup(), action_manager=FakeActions(), startup=FakeStartup(),
+        duplicates=FakeDuplicates(),
     )
     server, port = _serve(api)
     try:
@@ -193,6 +221,9 @@ def test_server_sert_le_kit_et_la_vue_json(local_server):
     with urlopen(local_server + "/api/startup") as response:
         startup = json.load(response)
     assert startup["entries"][0]["id"] == "run-1"
+    with urlopen(local_server + "/api/duplicates") as response:
+        duplicates = json.load(response)
+    assert duplicates["groups"][0]["id"] == "double-1"
 
 
 @pytest.mark.parametrize(

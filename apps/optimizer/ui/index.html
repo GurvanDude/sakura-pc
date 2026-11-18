@@ -150,6 +150,24 @@
             <div class="sk-card sk-stack startup-list" id="startup-readonly"></div>
           </div>
         </section>
+        <section class="sk-section cleanup-page duplicates-section" aria-labelledby="duplicates-title">
+          <h2 class="sk-section-title" id="duplicates-title">Fichiers en double</h2>
+          <p class="sk-sub">Je cherche les fichiers identiques dans tes dossiers (photos, vidéos, musique, documents, installeurs). Je laisse de côté les logiciels, les jeux et les banques de sons.</p>
+          <div class="sk-actions duplicates-scan-actions">
+            <button class="sk-btn sk-btn--primary" id="duplicates-scan" type="button">Chercher les doublons</button>
+            <button class="sk-btn sk-btn--secondary" id="duplicates-stop" type="button" hidden>Arrêter</button>
+            <span class="sk-sub" id="duplicates-status" aria-live="polite"></span>
+          </div>
+          <div id="duplicates-results" hidden>
+            <div class="duplicates-result-head">
+              <strong id="duplicates-summary"></strong>
+              <button class="sk-btn sk-btn--secondary sk-btn--small" id="duplicates-propose" type="button">Tout proposer</button>
+            </div>
+            <div class="sk-stack duplicates-list" id="duplicates-list"></div>
+            <button class="sk-btn sk-btn--secondary sk-btn--small duplicates-more" id="duplicates-more" type="button" hidden>Voir plus</button>
+            <button class="sk-btn sk-btn--primary duplicates-apply" id="duplicates-apply" type="button" disabled>Mettre 0 octet en quarantaine</button>
+          </div>
+        </section>
       </div>
 
       <div data-panel="actions" hidden>

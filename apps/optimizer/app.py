@@ -27,6 +27,7 @@ from sakura_opt.names import add_friendly_names
 from sakura_opt.sensors import Sampler
 from sakura_opt.actions import ActionManager
 from sakura_opt.cleanup import Cleanup
+from sakura_opt.duplicates import Duplicates
 from sakura_opt.startup import Startup
 
 ROOT = Path(__file__).resolve().parent
@@ -148,6 +149,7 @@ class Api:
         cleanup: Cleanup | None = None,
         action_manager: ActionManager | None = None,
         startup: Startup | None = None,
+        duplicates: Duplicates | None = None,
     ) -> None:
         self._monitor = monitor
         self._window: Any | None = None
@@ -159,8 +161,18 @@ class Api:
         self._actions = action_manager or ActionManager()
         self._cleanup = cleanup or Cleanup(self._actions)
         self._startup = startup or Startup(self._actions)
-        self._workers = ThreadPoolExecutor(max_workers=2, thread_name_prefix="optimizer-actions")
+        self._duplicates = duplicates or Duplicates(
+            self._actions, config_path=self._theme_path
+        )
+        self._workers = ThreadPoolExecutor(max_workers=3, thread_name_prefix="optimizer-actions")
         self._preferences_lock = threading.Lock()
+        self._duplicates_lock = threading.RLock()
+        self._duplicates_cancel = threading.Event()
+        self._duplicates_future: Any | None = None
+        self._duplicates_state: dict[str, Any] = {
+            "en_cours": False, "fichiers_regardes": 0,
+            "texte": "Aucune recherche lancée.", "erreur": None,
+        }
 
     def _preferences(self) -> dict[str, Any]:
         try:
@@ -281,6 +293,75 @@ class Api:
     def startup_enable(self, identifier: str) -> dict[str, Any]:
         return self._workers.submit(self._startup.enable, identifier).result()
 
+    def duplicates_scan(self) -> dict[str, Any]:
+        """Démarre l'analyse sans bloquer l'interface."""
+        with self._duplicates_lock:
+            if self._duplicates_future is not None and not self._duplicates_future.done():
+                return dict(self._duplicates_state)
+            self._duplicates_cancel = threading.Event()
+            self._duplicates_state = {
+                "en_cours": True, "fichiers_regardes": 0,
+                "texte": "Je commence à regarder les fichiers…", "erreur": None,
+            }
+
+            def progress(count: int) -> None:
+                with self._duplicates_lock:
+                    self._duplicates_state["fichiers_regardes"] = int(count)
+                    self._duplicates_state["texte"] = (
+                        "J’ai regardé " + f"{int(count):,}".replace(",", " ") + " fichiers…"
+                    )
+
+            future = self._workers.submit(
+                self._duplicates.scan, progress, self._duplicates_cancel
+            )
+            self._duplicates_future = future
+            future.add_done_callback(self._duplicates_done)
+            return dict(self._duplicates_state)
+
+    def _duplicates_done(self, future: Any) -> None:
+        try:
+            result = future.result()
+            with self._duplicates_lock:
+                count = int(result.get("fichiers_regardes", 0))
+                self._duplicates_state = {
+                    "en_cours": False, "fichiers_regardes": count,
+                    "texte": "Recherche arrêtée." if result.get("annule") else (
+                        "J’ai regardé " + f"{count:,}".replace(",", " ") + " fichiers."
+                    ),
+                    "erreur": None, "resultat": result,
+                }
+        except Exception:
+            with self._duplicates_lock:
+                self._duplicates_state = {
+                    **self._duplicates_state, "en_cours": False,
+                    "texte": "La recherche n’a pas pu se terminer.",
+                    "erreur": "La recherche n’a pas pu se terminer.",
+                }
+
+    def duplicates_progress(self) -> dict[str, Any]:
+        with self._duplicates_lock:
+            return dict(self._duplicates_state)
+
+    def duplicates_cancel(self) -> dict[str, Any]:
+        with self._duplicates_lock:
+            running = bool(self._duplicates_future and not self._duplicates_future.done())
+            if running:
+                self._duplicates_cancel.set()
+                self._duplicates_state["texte"] = "J’arrête la recherche…"
+            return {"ok": running, **self._duplicates_state}
+
+    def duplicates_apply(self, selection: Any) -> dict[str, Any]:
+        return self._workers.submit(self._duplicates.apply, selection).result()
+
+    def duplicates_result(self) -> dict[str, Any]:
+        return self._duplicates.last_result
+
+    def open_folder(self, path: str) -> dict[str, Any]:
+        return self._duplicates.open_folder(path)
+
+    def exclude_folder(self, path: str) -> dict[str, Any]:
+        return self._duplicates.exclude_folder(path)
+
 
 def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
     routes = {
@@ -336,6 +417,11 @@ def _serve(api: Api) -> tuple[socketserver.ThreadingTCPServer, int]:
                 return
             if request_path == "/api/startup":
                 payload = json.dumps(api.startup_list(), ensure_ascii=False).encode("utf-8")
+                self._headers(200, "application/json; charset=utf-8", len(payload))
+                self.wfile.write(payload)
+                return
+            if request_path == "/api/duplicates":
+                payload = json.dumps(api.duplicates_result(), ensure_ascii=False).encode("utf-8")
                 self._headers(200, "application/json; charset=utf-8", len(payload))
                 self.wfile.write(payload)
                 return

@@ -17,6 +17,90 @@
   border-top: 1px solid var(--sk-line);
 }
 
+.duplicates-section {
+  margin-top: 28px;
+  padding-top: 28px;
+  border-top: 1px solid var(--sk-line);
+}
+
+.duplicates-scan-actions {
+  align-items: center;
+  margin-top: 18px;
+}
+
+.duplicates-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 20px 0 12px;
+}
+
+.duplicates-list { min-width: 0; }
+.duplicate-card { min-width: 0; }
+
+.duplicate-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+.duplicate-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duplicate-copy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--sk-line);
+}
+
+.duplicate-copy-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.duplicate-path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duplicate-date,
+.duplicate-exclude {
+  color: var(--sk-muted);
+  font-size: 11px;
+}
+
+.duplicate-exclude {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.duplicate-kept {
+  flex: 0 0 auto;
+  color: var(--sk-muted);
+  font-size: 12px;
+}
+
+.duplicates-more { margin-top: 12px; }
+.duplicates-apply { margin-top: 18px; }
+
 .startup-launcher-info {
   margin-top: 7px;
   color: var(--sk-muted);
@@ -408,6 +492,10 @@
     text-align: left;
   }
 
+  .duplicate-copy { flex-wrap: wrap; }
+  .duplicate-copy-main { flex-basis: calc(100% - 40px); }
+  .duplicate-open { margin-left: 29px; }
+
 }
 
 @media (max-width: 620px) {
@@ -436,6 +524,12 @@
   .cleanup-row .sk-row-main { flex-basis: calc(100% - 42px); }
 
   .quarantine-footer { flex-direction: column; }
+
+  .duplicates-result-head,
+  .duplicate-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
 }
 

@@ -26,10 +26,16 @@
   Sakura.init();
   let appBridge = null;
   let cleanupCategories = [];
+  let duplicateGroups = [];
+  let duplicateVisible = 50;
+  let duplicateSelected = new Set();
 
   Sakura.tabs($('#optimizer-tabs'), tab => {
     if (tab === 'actions') refreshActions();
-    if (tab === 'cleanup') refreshStartup();
+    if (tab === 'cleanup') {
+      refreshStartup();
+      refreshDuplicatesResult();
+    }
   });
 
   function formatSize(bytes) {
@@ -99,6 +105,145 @@
     } finally {
       $('#cleanup-scan').disabled = false;
     }
+  }
+
+  function duplicateSelection() {
+    return [...duplicateSelected];
+  }
+
+  function updateDuplicateTotal() {
+    const selected = new Set(duplicateSelection());
+    let total = 0;
+    duplicateGroups.forEach(group => {
+      group.copies.forEach(copy => { if (selected.has(copy.chemin)) total += Number(group.taille) || 0; });
+    });
+    const button = $('#duplicates-apply');
+    button.textContent = 'Mettre ' + formatSize(total) + ' en quarantaine';
+    button.disabled = selected.size === 0;
+    return total;
+  }
+
+  function duplicateCopyRow(copy) {
+    const row = make('div', 'duplicate-copy');
+    if (copy.garder) {
+      const kept = make('span', 'duplicate-kept');
+      kept.textContent = 'gardée';
+      row.append(kept);
+    } else {
+      const box = make('input', 'cleanup-checkbox');
+      box.type = 'checkbox';
+      box.value = copy.chemin;
+      box.checked = duplicateSelected.has(copy.chemin);
+      box.setAttribute('aria-label', 'Proposer cette copie');
+      row.append(box);
+    }
+    const main = make('div', 'duplicate-copy-main');
+    const path = make('span', 'duplicate-path');
+    path.textContent = copy.dossier_lisible || copy.chemin;
+    path.title = copy.chemin;
+    const date = make('span', 'duplicate-date');
+    const parsed = new Date(copy.date_modif);
+    date.textContent = Number.isNaN(parsed.getTime()) ? String(copy.date_modif || '')
+      : 'Modifié le ' + parsed.toLocaleDateString('fr-FR');
+    const exclude = make('button', 'duplicate-exclude');
+    exclude.type = 'button';
+    exclude.textContent = 'Ne plus regarder ce dossier';
+    exclude.addEventListener('click', () => excludeDuplicateFolder(copy.chemin));
+    main.append(path, date, exclude);
+    const open = make('button', 'sk-btn sk-btn--secondary sk-btn--small duplicate-open');
+    open.type = 'button';
+    open.textContent = 'Ouvrir le dossier';
+    open.addEventListener('click', async () => {
+      if (!appBridge) return;
+      const result = await appBridge.open_folder(copy.chemin);
+      if (!result.ok) Sakura.toast(result.erreur || 'Je n’arrive pas à ouvrir ce dossier.', { kind: 'warn' });
+    });
+    row.append(main, open);
+    return row;
+  }
+
+  function duplicateCard(group) {
+    const card = make('article', 'sk-card duplicate-card');
+    const head = make('div', 'duplicate-card-head');
+    const name = make('strong', 'duplicate-name');
+    name.textContent = group.nom || 'Fichier identique';
+    name.title = name.textContent;
+    const size = make('span', 'sk-sub');
+    size.textContent = formatSize(group.taille);
+    head.append(name, size);
+    const copies = make('div');
+    copies.replaceChildren(...group.copies.map(duplicateCopyRow));
+    card.append(head, copies);
+    return card;
+  }
+
+  function renderDuplicates(payload) {
+    duplicateGroups = Array.isArray(payload.groups) ? payload.groups : [];
+    duplicateSelected = new Set();
+    const shownCount = duplicateGroups.reduce((sum, group) =>
+      sum + Math.max(0, (Array.isArray(group.copies) ? group.copies.length : 0) - 1), 0);
+    const duplicateCount = Number.isFinite(Number(payload.fichiers_en_double))
+      ? Number(payload.fichiers_en_double) : shownCount;
+    $('#duplicates-summary').textContent = duplicateCount.toLocaleString('fr-FR')
+      + ' fichier' + (duplicateCount === 1 ? '' : 's') + ' en double, '
+      + formatSize(payload.gain_total) + ' à gagner';
+    $('#duplicates-list').replaceChildren(...duplicateGroups.slice(0, duplicateVisible).map(duplicateCard));
+    $('#duplicates-results').hidden = false;
+    $('#duplicates-more').hidden = duplicateVisible >= duplicateGroups.length;
+    $('#duplicates-propose').disabled = duplicateCount === 0;
+    updateDuplicateTotal();
+  }
+
+  async function refreshDuplicatesResult() {
+    try {
+      const result = appBridge ? await appBridge.duplicates_result()
+        : await fetch('/api/duplicates', { cache: 'no-store' }).then(response => response.json());
+      if ((result.groups && result.groups.length) || result.fichiers_regardes) renderDuplicates(result);
+    } catch (_) { /* la section reste prête pour une première recherche */ }
+  }
+
+  async function scanDuplicates() {
+    if (!appBridge) return;
+    duplicateVisible = 50;
+    $('#duplicates-scan').disabled = true;
+    $('#duplicates-stop').hidden = false;
+    $('#duplicates-status').textContent = 'Je commence à regarder les fichiers…';
+    try {
+      await appBridge.duplicates_scan();
+      await pollDuplicates();
+    } catch (_) {
+      $('#duplicates-status').textContent = 'La recherche n’a pas pu se terminer.';
+      $('#duplicates-scan').disabled = false;
+      $('#duplicates-stop').hidden = true;
+    }
+  }
+
+  async function pollDuplicates() {
+    if (!appBridge) return;
+    let state;
+    try { state = await appBridge.duplicates_progress(); } catch (_) { state = null; }
+    if (!state) {
+      $('#duplicates-status').textContent = 'Je n’arrive pas à suivre la recherche.';
+      $('#duplicates-scan').disabled = false;
+      $('#duplicates-stop').hidden = true;
+      return;
+    }
+    $('#duplicates-status').textContent = state.texte || '';
+    if (state.en_cours) {
+      window.setTimeout(pollDuplicates, 250);
+      return;
+    }
+    $('#duplicates-scan').disabled = false;
+    $('#duplicates-stop').hidden = true;
+    if (state.resultat) renderDuplicates(state.resultat);
+  }
+
+  async function excludeDuplicateFolder(path) {
+    if (!appBridge) return;
+    const result = await appBridge.exclude_folder(path);
+    Sakura.toast(result.ok ? 'Je ne regarderai plus ce dossier.'
+      : (result.erreur || 'Je n’ai pas pu exclure ce dossier.'), { kind: result.ok ? 'ok' : 'warn' });
+    if (result.ok) scanDuplicates();
   }
 
   function createStartupRow(entry, readOnly = false) {
@@ -664,6 +809,60 @@
 
   $('#cleanup-scan').addEventListener('click', scanCleanup);
   $('#cleanup-list').addEventListener('change', updateCleanupTotal);
+  $('#duplicates-scan').addEventListener('click', scanDuplicates);
+  $('#duplicates-stop').addEventListener('click', async () => {
+    if (appBridge) await appBridge.duplicates_cancel();
+  });
+  $('#duplicates-list').addEventListener('change', event => {
+    const box = event.target;
+    if (!box || box.type !== 'checkbox') return;
+    if (box.checked) duplicateSelected.add(box.value);
+    else duplicateSelected.delete(box.value);
+    updateDuplicateTotal();
+  });
+  $('#duplicates-propose').addEventListener('click', () => {
+    duplicateSelected = new Set();
+    duplicateGroups.forEach(group => group.copies.forEach(copy => {
+      if (!copy.garder) duplicateSelected.add(copy.chemin);
+    }));
+    $('#duplicates-list').querySelectorAll('input[type="checkbox"]').forEach(box => { box.checked = true; });
+    updateDuplicateTotal();
+  });
+  $('#duplicates-more').addEventListener('click', () => {
+    duplicateVisible += 50;
+    $('#duplicates-list').replaceChildren(...duplicateGroups.slice(0, duplicateVisible).map(duplicateCard));
+    $('#duplicates-more').hidden = duplicateVisible >= duplicateGroups.length;
+    updateDuplicateTotal();
+  });
+  $('#duplicates-apply').addEventListener('click', async () => {
+    if (!appBridge) return;
+    const selection = duplicateSelection();
+    const total = updateDuplicateTotal();
+    if (!selection.length) return;
+    const confirmed = await Sakura.confirm({
+      title: 'Mettre ' + formatSize(total) + ' en quarantaine ?',
+      text: 'Tu pourras remettre ces fichiers depuis « Ce que j’ai fait ».',
+      yes: 'Oui, range ces ' + selection.length + ' fichier' + (selection.length === 1 ? '' : 's'),
+      no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    $('#duplicates-apply').disabled = true;
+    try {
+      const result = await appBridge.duplicates_apply(selection);
+      const ignored = Number(result.ignores) || 0;
+      let message = result.deplaces
+        ? formatSize(result.place_gagnee) + ' mis en quarantaine.'
+        : 'Aucun fichier n’a été déplacé.';
+      if (ignored) message += ' ' + ignored.toLocaleString('fr-FR') + ' laissé(s) en place.';
+      Sakura.toast(message, { kind: result.ok ? 'ok' : 'warn' });
+      if (result.resultat) renderDuplicates(result.resultat);
+      refreshActions();
+    } catch (_) {
+      Sakura.toast('Je n’ai pas pu ranger ces fichiers.', { kind: 'warn' });
+    } finally {
+      updateDuplicateTotal();
+    }
+  });
   $('#cleanup-apply').addEventListener('click', async () => {
     if (!appBridge) return;
     const identifiers = selectedCleanup();

@@ -56,6 +56,8 @@ def build_parser():
     startup_mode.add_argument('--disable', metavar='ID', help='Coupe cette entrée au démarrage.')
     startup_mode.add_argument('--enable', metavar='ID', help='Remet cette entrée au démarrage.')
     startup.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
+    duplicates = subparsers.add_parser('duplicates', help='Cherche les fichiers strictement identiques.')
+    duplicates.add_argument('--json', action='store_true', help='Affiche le résultat au format JSON.')
     return parser
 
 
@@ -179,6 +181,18 @@ def main():
                 print(f"{entry['id']} · {entry['nom']}{editor} · {entry['etat']} · "
                       f"{entry['source']}{reason}")
         return 0 if result.get('ok', True) else 1
+    if args.command == 'duplicates':
+        from sakura_opt.duplicates import scan
+        result = scan()
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            copies = result.get('fichiers_en_double', sum(
+                max(0, len(group['copies']) - 1) for group in result['groups']
+            ))
+            print(f"{copies} fichier(s) en double · {_size(result['gain_total'])} à gagner")
+            print(f"{result['fichiers_regardes']:,} fichier(s) regardé(s)".replace(',', ' '))
+        return 0
     return 0
 
 

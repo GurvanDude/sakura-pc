@@ -55,3 +55,10 @@ def test_commande_startup_liste_coupe_et_remet():
     assert listing.command == 'startup' and listing.json is True
     assert disable.disable == 'run-123' and disable.json is True
     assert enable.enable == 'run-123'
+
+
+def test_commande_duplicates_analyse_seulement():
+    args = build_parser().parse_args(['duplicates', '--json'])
+
+    assert args.command == 'duplicates'
+    assert args.json is True

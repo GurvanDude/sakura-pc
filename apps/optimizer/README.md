@@ -117,6 +117,26 @@ python optimizer.py startup --disable <id> --json
 python optimizer.py startup --enable <id> --json
 ```
 
+## Fichiers en double
+
+La troisième section de l’onglet **Ménage** cherche les contenus strictement identiques dans les dossiers connus
+Documents, Téléchargements, Images, Vidéos, Musique et Bureau. Elle regarde seulement les formats courants de
+photos, vidéos, musique, documents et archives. Les installeurs `.exe` et `.msi` sont acceptés uniquement lorsqu’ils
+traînent directement dans Documents, Téléchargements ou le Bureau.
+
+Les petits fichiers sont laissés tranquilles. Sakura ne parcourt jamais les projets de code, les liens et jonctions,
+les fichiers OneDrive en ligne seulement, les dossiers de logiciels, de jeux, de plugins ou de banques de sons, ni
+les dossiers que tu as exclus. Une copie n’est proposée que si son contenu entier est identique à celui de la copie
+gardée. Rien n’est coché automatiquement.
+
+Les copies que tu confirmes vont dans la même quarantaine annulable que le ménage pendant 7 jours. Les fichiers sont
+revérifiés juste avant leur déplacement et Sakura refuse toujours d’enlever toutes les copies d’un groupe. La commande
+suivante fait seulement l’analyse, sans aucune action :
+
+```powershell
+python optimizer.py duplicates --json
+```
+
 ## Outil technique
 
 Le moniteur terminal reste disponible pour le diagnostic technique :
