@@ -102,8 +102,10 @@
   }
 
   function createStartupRow(entry, readOnly = false) {
-    const warn = entry.recommandation && entry.recommandation.niveau === 'inutile';
-    const row = make('article', 'sk-row startup-entry' + (warn ? ' is-warn' : ''));
+    // une appli coupée est « éteinte » : plus de mise en avant, même si elle était jugée inutile
+    const off = entry.etat !== 'actif';
+    const warn = !off && entry.recommandation && entry.recommandation.niveau === 'inutile';
+    const row = make('article', 'sk-row startup-entry' + (warn ? ' is-warn' : '') + (off ? ' is-off' : ''));
     const main = make('div', 'sk-row-main');
     const title = make('div', 'sk-row-title');
     const detail = make('div', 'sk-row-sub');
@@ -113,7 +115,7 @@
       .filter(Boolean).join(' · ');
     main.append(title, detail);
     const end = make('div', 'startup-state');
-    const state = make('span', 'sk-stat-state' + (warn ? ' is-warn' : ' is-ok'));
+    const state = make('span', 'sk-stat-state' + (off ? '' : warn ? ' is-warn' : ' is-ok'));
     state.textContent = entry.etat;
     end.append(state);
     const canChange = entry.modifiable

@@ -438,3 +438,14 @@
   .quarantine-footer { flex-direction: column; }
 
 }
+
+/* appli coupée au démarrage : affichée « éteinte » (le bouton Remettre reste bien visible) */
+.startup-entry.is-off .sk-row-main,
+.startup-entry.is-off .sk-stat-state {
+  opacity: .5;
+  filter: grayscale(.6);
+}
+
+.startup-entry.is-off {
+  box-shadow: none;
+}
