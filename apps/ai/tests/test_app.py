@@ -16,6 +16,23 @@ def test_api_ne_contient_que_des_attributs_prives(sakura_home):
     assert all(name.startswith("_") for name in vars(api))
 
 
+def test_interface_utilise_la_sidebar_du_kit():
+    html = (app.ROOT / "ui" / "index.html").read_text(encoding="utf-8")
+    javascript = (app.ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+    css = (app.ROOT / "ui" / "style.css").read_text(encoding="utf-8")
+
+    assert 'class="sk-layout app-layout"' in html
+    assert 'class="sk-sidebar"' in html
+    assert 'class="sk-sidebar-head"' in html
+    assert 'class="sk-sidebar-list"' in html
+    assert 'class="sk-layout-main app-content"' in html
+    assert "sk-sidebar-item chat-row" in javascript
+    assert "Sakura.sidebar(appLayout" in javascript
+    assert "localStorage" not in javascript
+    assert "sidebar-backdrop" not in html
+    assert ".sidebar-open" not in css
+
+
 def test_serveur_expose_design_sans_autoriser_les_sorties():
     server, port = _serve()
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)

@@ -189,6 +189,14 @@ def test_conversation_limitee_aux_derniers_messages():
     assert trimmed[1]["content"] == "10"
 
 
+def test_prompt_demande_un_diagnostic_sans_inventer_de_chiffres():
+    assert "appelle diagnose" in brain.SYSTEM_PROMPT
+    assert "2 si Gurvan dit « là maintenant »" in brain.SYSTEM_PROMPT
+    assert "15 s'il dit « depuis un moment »" in brain.SYSTEM_PROMPT
+    assert "je n'ai que quelques secondes de mesures" in brain.SYSTEM_PROMPT
+    assert "N'invente jamais de chiffres" in brain.SYSTEM_PROMPT
+
+
 def test_boucle_outil_puis_reponse(monkeypatch, sakura_home):
     responses = iter([
         FakeResponse([ndjson_tool("demo", {"value": 7})]),

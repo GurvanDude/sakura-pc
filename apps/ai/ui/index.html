@@ -11,12 +11,15 @@
 </head>
 <body>
   <div class="sk-window" id="app-window">
-    <div class="app-shell">
-      <aside id="chat-sidebar" class="chat-sidebar" aria-label="Discussions">
+    <div id="app-layout" class="sk-layout app-layout">
+      <aside id="chat-sidebar" class="sk-sidebar" aria-label="Discussions">
+        <div class="sk-sidebar-head">
+          <h1 class="sk-sidebar-title">Discussions</h1>
+        </div>
         <div id="chat-confirm"></div>
-        <nav id="chat-list" class="chat-list"></nav>
+        <nav id="chat-list" class="sk-sidebar-list"></nav>
       </aside>
-      <main class="app-content">
+      <main class="sk-layout-main app-content">
         <aside id="notice" class="sk-tip" hidden>
           <div class="sk-tip-body"><div id="notice-text" class="sk-tip-title"></div></div>
           <button id="retry" class="sk-btn sk-btn--secondary sk-btn--small" type="button">Réessayer</button>
@@ -32,7 +35,6 @@
           <p class="sk-hint">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</p>
         </footer>
       </main>
-      <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="Fermer les discussions"></button>
     </div>
   </div>
   <script src="/app.js"></script>

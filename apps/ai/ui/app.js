@@ -1,5 +1,6 @@
 const $ = selector => document.querySelector(selector);
 const appWindow = $('#app-window');
+const appLayout = $('#app-layout');
 const conversation = $('#conversation');
 const input = $('#message');
 const sendButton = $('#send');
@@ -157,7 +158,7 @@ async function newChat() {
     currentChatId = result.id;
     renderConversation([]);
     await loadChats();
-    closeMobileSidebar();
+    closeSidebarOnNarrowScreen();
   } catch (_) { warn("La nouvelle discussion n'a pas pu être créée. Réessaie."); }
 }
 
@@ -221,7 +222,7 @@ async function openChat(chatId) {
     currentChatId = result.id;
     renderConversation(result.messages);
     await loadChats();
-    closeMobileSidebar();
+    closeSidebarOnNarrowScreen();
   } catch (_) { warn("La discussion n'a pas pu être ouverte."); }
 }
 
@@ -247,10 +248,10 @@ async function loadChats() {
       section.appendChild(title);
       groups.get(name).forEach(chat => {
         const row = document.createElement('div');
-        row.className = `chat-row${chat.id === currentChatId ? ' is-active' : ''}`;
+        row.className = `sk-sidebar-item chat-row${chat.id === currentChatId ? ' is-active' : ''}`;
         const open = document.createElement('button');
         open.type = 'button';
-        open.className = 'chat-open';
+        open.className = 'sk-sidebar-item-title chat-open';
         open.textContent = chat.title;
         open.title = chat.title;
         open.addEventListener('click', () => openChat(chat.id));
@@ -277,12 +278,8 @@ async function loadChats() {
   } catch (_) { warn("La liste des discussions n'a pas pu être chargée."); }
 }
 
-function isNarrow() { return window.matchMedia('(max-width: 760px)').matches; }
-function closeMobileSidebar() { if (isNarrow()) appWindow.classList.remove('sidebar-open'); }
-function toggleSidebar() {
-  if (isNarrow()) { appWindow.classList.toggle('sidebar-open'); return; }
-  const collapsed = appWindow.classList.toggle('sidebar-collapsed');
-  try { localStorage.setItem('sakura-ai-sidebar-collapsed', String(collapsed)); } catch (_) { /* stockage indisponible */ }
+function closeSidebarOnNarrowScreen() {
+  if (window.matchMedia('(max-width: 760px)').matches) sidebar.close();
 }
 
 window.onChunk = chunk => {
@@ -335,7 +332,7 @@ window.onChatsChanged = async () => { await loadChats(); };
 const titlebar = Sakura.titlebar({
   title: 'Sakura AI',
   actions: [
-    { label: '☰', onClick: toggleSidebar },
+    { label: '☰' },
     { label: '＋ Nouvelle discussion', onClick: newChat },
   ],
 });
@@ -343,10 +340,7 @@ const titleActions = titlebar.querySelectorAll('.sk-titlebar-actions .sk-btn');
 titleActions[0]?.setAttribute('aria-label', 'Afficher ou masquer les discussions');
 appWindow.insertBefore(titlebar, appWindow.firstChild);
 Sakura.decor(appWindow, { torii: 'faint' });
-
-try {
-  if (localStorage.getItem('sakura-ai-sidebar-collapsed') === 'true') appWindow.classList.add('sidebar-collapsed');
-} catch (_) { /* stockage indisponible */ }
+const sidebar = Sakura.sidebar(appLayout, { toggle: titleActions[0] });
 
 conversation.addEventListener('scroll', () => {
   followBottom = conversation.scrollHeight - conversation.scrollTop - conversation.clientHeight < 80;
@@ -357,7 +351,6 @@ input.addEventListener('keydown', event => {
 });
 sendButton.addEventListener('click', send);
 $('#retry').addEventListener('click', checkStatus);
-$('#sidebar-backdrop').addEventListener('click', closeMobileSidebar);
 
 window.addEventListener('pywebviewready', async () => {
   try {

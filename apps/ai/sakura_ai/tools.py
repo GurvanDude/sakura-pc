@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 import unicodedata
@@ -18,11 +19,17 @@ from typing import Any, Callable
 from core import paths
 
 APP_ROOT = Path(__file__).resolve().parents[1]
+REPO = APP_ROOT.parents[1]
 LAUNCHER_ROOT = APP_ROOT.parent / "launcher"
 FILE_SEARCH_SECONDS = 3.0
 MAX_FILE_RESULTS = 10
 START_MENU_CACHE_SECONDS = 5 * 60
 MAX_OTHER_APPS = 60
+DIAGNOSE_MINUTES = (2, 5, 15)
+DIAGNOSE_TIMEOUT = 90
+MAX_DIAGNOSE_FINDINGS = 4
+MAX_DIAGNOSE_ADVICE = 3
+MAX_DIAGNOSE_STDERR = 1000
 
 _IGNORED_SHORTCUT_WORDS = {
     "uninstall", "desinstaller", "help", "aide", "read me", "readme",
@@ -273,6 +280,7 @@ class ToolRegistry:
         monotonic: Callable[[], float] = time.monotonic,
         process_iter: Callable[..., Any] | None = None,
         wait_procs: Callable[..., Any] | None = None,
+        diagnose_runner: Callable[..., Any] = subprocess.run,
         logger: Any = None,
     ) -> None:
         self._config_loader = config_loader
@@ -286,6 +294,7 @@ class ToolRegistry:
         self._start_menu_cache_time = 0.0
         self._process_iter = process_iter
         self._wait_procs = wait_procs
+        self._diagnose_runner = diagnose_runner
         self._logger = logger
         self._tools = {tool.name: tool for tool in self._build_tools()}
 
@@ -316,6 +325,20 @@ class ToolRegistry:
                 "find_files", "Cherche des fichiers par leur nom dans les dossiers personnels.",
                 _object_schema({"query": text}, ["query"]), False, self._find_files,
                 lambda args: f"Recherche de fichiers : {args.get('query', '')}",
+            ),
+            Tool(
+                "diagnose",
+                "Analyse les dernières minutes du PC avec Sakura Optimizer pour expliquer pourquoi il rame ou a ramé (processeur, mémoire, disque, carte graphique, température). À utiliser dès que Gurvan parle de lenteur, de lag, de ralentissement ou de PC qui chauffe.",
+                _object_schema({
+                    "minutes": {
+                        "type": "integer",
+                        "enum": list(DIAGNOSE_MINUTES),
+                        "default": 5,
+                    },
+                }, []),
+                False,
+                self._diagnose,
+                lambda args: f"🩺 Diagnostic des {_diagnose_minutes(args.get('minutes', 5))} dernières minutes",
             ),
             Tool(
                 "close_app", "Ferme proprement une application en cours d'exécution.",
@@ -494,6 +517,67 @@ class ToolRegistry:
         files = [{"path": str(path), "modified": datetime.fromtimestamp(modified).isoformat(timespec="seconds")} for modified, path in found[:MAX_FILE_RESULTS]]
         return {"ok": True, "message": f"{len(files)} fichier(s) trouvé(s).", "files": files, "timed_out": timed_out}
 
+    def _diagnose(self, minutes: Any = 5) -> dict[str, Any]:
+        selected_minutes = _diagnose_minutes(minutes)
+        optimizer_root = REPO / "apps" / "optimizer"
+        optimizer = optimizer_root / "optimizer.py"
+        if not optimizer.is_file():
+            self._log_diagnose_error("Sakura Optimizer est introuvable.")
+            return {"ok": False, "message": "Sakura Optimizer est introuvable."}
+
+        command = [
+            sys.executable,
+            str(optimizer),
+            "diagnose",
+            "--minutes",
+            str(selected_minutes),
+            "--json",
+        ]
+        environment = os.environ.copy()
+        environment["PYTHONIOENCODING"] = "utf-8"
+        try:
+            completed = self._diagnose_runner(
+                command,
+                cwd=optimizer_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                env=environment,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
+                timeout=DIAGNOSE_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as exc:
+            self._log_diagnose_error("Le diagnostic a dépassé le délai.", getattr(exc, "stderr", ""))
+            return {"ok": False, "message": "Le diagnostic a pris trop de temps. Réessaie dans un instant."}
+        except OSError as exc:
+            self._log_diagnose_error(f"Impossible de lancer le diagnostic : {exc}")
+            return {"ok": False, "message": "Le diagnostic n'a pas pu démarrer."}
+
+        if completed.returncode != 0:
+            self._log_diagnose_error(
+                f"Le diagnostic s'est terminé avec le code {completed.returncode}.",
+                completed.stderr,
+            )
+            return {"ok": False, "message": "Sakura Optimizer n'a pas pu faire le diagnostic."}
+        try:
+            payload = json.loads(completed.stdout)
+        except (TypeError, ValueError, UnicodeError):
+            self._log_diagnose_error("Le JSON du diagnostic est illisible.", completed.stderr)
+            return {"ok": False, "message": "La réponse de Sakura Optimizer est illisible."}
+        if not isinstance(payload, dict):
+            self._log_diagnose_error("Le JSON du diagnostic n'est pas un objet.", completed.stderr)
+            return {"ok": False, "message": "La réponse de Sakura Optimizer est illisible."}
+        return _compact_diagnose(payload, selected_minutes)
+
+    def _log_diagnose_error(self, message: str, stderr: Any = "") -> None:
+        if self._logger is None:
+            return
+        error_text = str(stderr or "")[:MAX_DIAGNOSE_STDERR]
+        try:
+            self._logger.error("Diagnostic Optimizer : %s stderr=%s", message, error_text)
+        except Exception:
+            pass
+
     def _close_app(self, name: str) -> dict[str, Any]:
         import psutil
 
@@ -580,6 +664,54 @@ def _bounded_percent(value: Any) -> int:
         return round(max(0.0, min(100.0, float(value))))
     except (TypeError, ValueError):
         raise ValueError("Le volume doit être un nombre entre 0 et 100.") from None
+
+
+def _diagnose_minutes(value: Any) -> int:
+    try:
+        wanted = int(value)
+    except (TypeError, ValueError, OverflowError):
+        wanted = 5
+    return min(DIAGNOSE_MINUTES, key=lambda allowed: abs(allowed - wanted))
+
+
+def _clean_text(value: Any) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _compact_diagnose(payload: dict[str, Any], fallback_minutes: int) -> dict[str, Any]:
+    verdict = payload.get("verdict") if isinstance(payload.get("verdict"), dict) else {}
+    compact_findings: list[dict[str, Any]] = []
+    findings = payload.get("findings") if isinstance(payload.get("findings"), list) else []
+    for finding in findings:
+        if len(compact_findings) >= MAX_DIAGNOSE_FINDINGS:
+            break
+        if not isinstance(finding, dict):
+            continue
+        advice = finding.get("advice") if isinstance(finding.get("advice"), list) else []
+        compact_advice = [_clean_text(item) for item in advice if _clean_text(item)][:MAX_DIAGNOSE_ADVICE]
+        compact: dict[str, Any] = {
+            "title": _clean_text(finding.get("title")),
+            "explanation": _clean_text(finding.get("explanation")),
+            "advice": compact_advice,
+        }
+        evidence = finding.get("evidence") if isinstance(finding.get("evidence"), list) else []
+        if evidence and isinstance(evidence[0], dict):
+            label = _clean_text(evidence[0].get("label"))
+            value = _clean_text(evidence[0].get("value"))
+            if label or value:
+                compact["evidence"] = " : ".join(part for part in (label, value) if part)
+        compact_findings.append(compact)
+    return {
+        "ok": True,
+        "minutes": payload.get("minutes", fallback_minutes),
+        "verdict_title": _clean_text(verdict.get("title")),
+        "verdict_text": _clean_text(verdict.get("text")),
+        "mood": _clean_text(verdict.get("mood")),
+        "bottleneck": payload.get("bottleneck"),
+        "app": payload.get("app"),
+        "enough_data": payload.get("enough_data"),
+        "findings": compact_findings,
+    }
 
 
 _DEFAULT = ToolRegistry()
