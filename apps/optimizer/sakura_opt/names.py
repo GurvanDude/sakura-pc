@@ -16,6 +16,40 @@ _WINDOWS_PROCESSES = {
     "shellexperiencehost", "securityhealthservice", "spoolsv", "winlogon",
 }
 _PATH_NAMES: dict[str, str] = {}
+_PATH_INFO: dict[str, tuple[str | None, str | None]] = {}
+
+
+def executable_info(path: str | Path) -> tuple[str | None, str | None]:
+    """Lit la description et l'éditeur Windows d'un exécutable."""
+    clean = str(Path(path))
+    key = clean.casefold()
+    if key in _PATH_INFO:
+        return _PATH_INFO[key]
+    description = company = None
+    try:
+        import win32api
+
+        translations = win32api.GetFileVersionInfo(
+            clean, r"\VarFileInfo\Translation"
+        ) or [(0x0409, 1200)]
+        for lang, codepage in translations:
+            prefix = rf"\StringFileInfo\{lang:04x}{codepage:04x}"
+            for field, position in (("FileDescription", 0), ("ProductName", 0),
+                                    ("CompanyName", 1)):
+                try:
+                    value = win32api.GetFileVersionInfo(clean, prefix + "\\" + field)
+                except Exception:
+                    continue
+                if not isinstance(value, str) or not value.strip():
+                    continue
+                if position == 0 and description is None:
+                    description = value.strip()
+                elif position == 1 and company is None:
+                    company = value.strip()
+    except Exception:
+        pass
+    _PATH_INFO[key] = (description, company)
+    return description, company
 
 
 def add_friendly_names(status: dict[str, Any]) -> None:

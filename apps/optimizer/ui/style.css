@@ -2,6 +2,168 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.optimizer-tabs {
+  margin-bottom: 22px;
+}
+
+.cleanup-page,
+.actions-page {
+  max-width: 900px;
+}
+
+.startup-section {
+  margin-top: 28px;
+  padding-top: 28px;
+  border-top: 1px solid var(--sk-line);
+}
+
+.duplicates-section {
+  margin-top: 28px;
+  padding-top: 28px;
+  border-top: 1px solid var(--sk-line);
+}
+
+.duplicates-scan-actions {
+  align-items: center;
+  margin-top: 18px;
+}
+
+.duplicates-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 20px 0 12px;
+}
+
+.duplicates-list { min-width: 0; }
+.duplicate-card { min-width: 0; }
+
+.duplicate-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+.duplicate-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duplicate-copy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--sk-line);
+}
+
+.duplicate-copy-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.duplicate-path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duplicate-date,
+.duplicate-exclude {
+  color: var(--sk-muted);
+  font-size: 11px;
+}
+
+.duplicate-exclude {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.duplicate-kept {
+  flex: 0 0 auto;
+  color: var(--sk-muted);
+  font-size: 12px;
+}
+
+.duplicates-more { margin-top: 12px; }
+.duplicates-apply { margin-top: 18px; }
+
+.startup-launcher-info {
+  margin-top: 7px;
+  color: var(--sk-muted);
+  font-size: 12px;
+}
+
+.startup-list { margin-top: 16px; }
+.startup-section .sk-details-toggle { margin-top: 12px; }
+.startup-entry.is-warn { border-color: var(--sk-warn); }
+.startup-state { flex: 0 0 auto; text-align: right; }
+.startup-state .sk-stat-state { display: block; margin-bottom: 7px; }
+.startup-entry .sk-row-main { min-width: 0; }
+.startup-entry .sk-row-sub { overflow-wrap: anywhere; }
+
+.cleanup-scan-actions {
+  align-items: center;
+  margin-top: 20px;
+}
+
+.cleanup-list,
+.actions-list {
+  margin-top: 18px;
+  min-width: 0;
+}
+
+.cleanup-row { cursor: pointer; }
+
+.cleanup-checkbox {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--sk-accent);
+}
+
+.cleanup-risk {
+  display: block;
+  margin-top: 4px;
+  color: var(--sk-muted);
+  line-height: 1.35;
+}
+
+.cleanup-size {
+  flex: 0 0 auto;
+  color: var(--sk-text);
+  font-size: 14px;
+}
+
+.cleanup-total,
+.quarantine-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.cleanup-total strong {
+  font-family: var(--sk-font-title);
+  font-size: clamp(24px, 5vw, 38px);
+}
+
+.action-row .sk-row-main { min-width: 0; }
+
 .sk-stat {
   min-width: 0;
 }
@@ -296,6 +458,14 @@
 }
 
 @media (max-width: 760px) {
+  .sk-main {
+    width: 100%;
+    max-width: none;
+  }
+
+  .optimizer-tabs { overflow-x: auto; }
+  .optimizer-tabs .sk-tab { flex: 0 0 auto; }
+
   .diagnosis-verdict .sk-verdict,
   .diagnosis-finding-head,
   .diagnosis-evidence-row {
@@ -315,6 +485,16 @@
   .history-charts {
     grid-template-columns: 1fr;
   }
+
+  .startup-entry { flex-wrap: wrap; }
+  .startup-state {
+    flex-basis: 100%;
+    text-align: left;
+  }
+
+  .duplicate-copy { flex-wrap: wrap; }
+  .duplicate-copy-main { flex-basis: calc(100% - 40px); }
+  .duplicate-open { margin-left: 29px; }
 
 }
 
@@ -336,4 +516,30 @@
     flex-basis: 100%;
     text-align: left;
   }
+
+  .cleanup-row,
+  .action-row,
+  .quarantine-footer { align-items: flex-start; }
+
+  .cleanup-row .sk-row-main { flex-basis: calc(100% - 42px); }
+
+  .quarantine-footer { flex-direction: column; }
+
+  .duplicates-result-head,
+  .duplicate-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+}
+
+/* appli coupée au démarrage : affichée « éteinte » (le bouton Remettre reste bien visible) */
+.startup-entry.is-off .sk-row-main,
+.startup-entry.is-off .sk-stat-state {
+  opacity: .5;
+  filter: grayscale(.6);
+}
+
+.startup-entry.is-off {
+  box-shadow: none;
 }

@@ -12,6 +12,12 @@
 <body>
   <div class="sk-window" id="optimizer-window" data-torii="faint">
     <main class="sk-main">
+      <nav class="sk-tabs optimizer-tabs" id="optimizer-tabs" role="tablist" aria-label="Pages de l'Optimizer">
+        <button class="sk-tab is-active" type="button" role="tab" data-tab="pc">Mon PC</button>
+        <button class="sk-tab" type="button" role="tab" data-tab="cleanup">Ménage</button>
+        <button class="sk-tab" type="button" role="tab" data-tab="actions">Ce que j'ai fait</button>
+      </nav>
+      <div data-panel="pc">
       <section class="sk-section">
         <div class="sk-verdict" id="verdict">
           <div class="sk-mood" id="verdict-mood" aria-hidden="true">😊</div>
@@ -116,6 +122,67 @@
           <div id="sensor-details"></div>
         </div>
       </section>
+      </div>
+
+      <div data-panel="cleanup" hidden>
+        <section class="sk-section cleanup-page">
+          <h1 class="sk-title">Faire de la place</h1>
+          <p class="sk-sub">Je range dans une quarantaine sur le disque D pendant 7 jours : tu peux tout remettre.</p>
+          <div class="sk-actions cleanup-scan-actions">
+            <button class="sk-btn sk-btn--primary" id="cleanup-scan" type="button">Regarder ce qu'on peut libérer</button>
+            <span class="sk-sub" id="cleanup-status" aria-live="polite"></span>
+          </div>
+          <div class="sk-card sk-stack cleanup-list" id="cleanup-list" hidden></div>
+          <div class="cleanup-total" id="cleanup-total" hidden>
+            <span>Total coché</span><strong id="cleanup-total-value">0 octet</strong>
+          </div>
+          <button class="sk-btn sk-btn--primary" id="cleanup-apply" type="button" hidden>Libérer 0 octet</button>
+        </section>
+        <section class="sk-section cleanup-page startup-section" aria-labelledby="startup-title">
+          <h2 class="sk-section-title" id="startup-title">Au démarrage de Windows</h2>
+          <p class="sk-sub">Moins de programmes au démarrage = un bureau prêt plus vite. Tout ce que je coupe se remet en un clic.</p>
+          <p class="sk-sub startup-launcher-info">Les applis lancées par Sakura Launcher lui-même se règlent dans Sakura Launcher › Réglages › Démarrage.</p>
+          <div class="sk-card sk-stack startup-list" id="startup-list">
+            <p class="sk-sub">Je regarde les programmes de démarrage…</p>
+          </div>
+          <button class="sk-btn sk-btn--secondary sk-btn--small sk-details-toggle" id="startup-details-button" type="button" aria-expanded="false">Détails ▾</button>
+          <div class="sk-details" id="startup-details" hidden>
+            <div class="sk-card sk-stack startup-list" id="startup-readonly"></div>
+          </div>
+        </section>
+        <section class="sk-section cleanup-page duplicates-section" aria-labelledby="duplicates-title">
+          <h2 class="sk-section-title" id="duplicates-title">Fichiers en double</h2>
+          <p class="sk-sub">Je cherche les fichiers identiques dans tes dossiers (photos, vidéos, musique, documents, installeurs). Je laisse de côté les logiciels, les jeux et les banques de sons.</p>
+          <div class="sk-actions duplicates-scan-actions">
+            <button class="sk-btn sk-btn--primary" id="duplicates-scan" type="button">Chercher les doublons</button>
+            <button class="sk-btn sk-btn--secondary" id="duplicates-stop" type="button" hidden>Arrêter</button>
+            <span class="sk-sub" id="duplicates-status" aria-live="polite"></span>
+          </div>
+          <div id="duplicates-results" hidden>
+            <div class="duplicates-result-head">
+              <strong id="duplicates-summary"></strong>
+              <button class="sk-btn sk-btn--secondary sk-btn--small" id="duplicates-propose" type="button">Tout proposer</button>
+            </div>
+            <div class="sk-stack duplicates-list" id="duplicates-list"></div>
+            <button class="sk-btn sk-btn--secondary sk-btn--small duplicates-more" id="duplicates-more" type="button" hidden>Voir plus</button>
+            <button class="sk-btn sk-btn--primary duplicates-apply" id="duplicates-apply" type="button" disabled>Mettre 0 octet en quarantaine</button>
+          </div>
+        </section>
+      </div>
+
+      <div data-panel="actions" hidden>
+        <section class="sk-section actions-page">
+          <h1 class="sk-title">Ce que j'ai fait</h1>
+          <p class="sk-sub">Tu peux remettre ce qui est encore dans la quarantaine ou au démarrage.</p>
+          <div class="sk-card sk-stack actions-list" id="actions-list">
+            <p class="sk-sub">Je regarde le journal…</p>
+          </div>
+          <div class="quarantine-footer">
+            <strong id="quarantine-size">Quarantaine : 0 octet</strong>
+            <button class="sk-btn sk-btn--danger" id="empty-quarantine" type="button">Vider maintenant</button>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
   <script src="/app.js"></script>

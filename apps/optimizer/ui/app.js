@@ -22,7 +22,359 @@
     onClose: () => { if (api()) api().close(); }
   }), shell.firstChild);
   Sakura.details($('#details-button'), $('#details'));
+  Sakura.details($('#startup-details-button'), $('#startup-details'));
   Sakura.init();
+  let appBridge = null;
+  let cleanupCategories = [];
+  let duplicateGroups = [];
+  let duplicateVisible = 50;
+  let duplicateSelected = new Set();
+
+  Sakura.tabs($('#optimizer-tabs'), tab => {
+    if (tab === 'actions') refreshActions();
+    if (tab === 'cleanup') {
+      refreshStartup();
+      refreshDuplicatesResult();
+    }
+  });
+
+  function formatSize(bytes) {
+    const units = ['octet', 'Ko', 'Mo', 'Go', 'To'];
+    let value = Math.max(0, Number(bytes) || 0);
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+    const digits = unit === 0 ? 0 : 1;
+    const label = unit === 0 && Math.round(value) !== 1 ? 'octets' : units[unit];
+    return value.toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ' ' + label;
+  }
+
+  function selectedCleanup() {
+    return [...$('#cleanup-list').querySelectorAll('input:checked')].map(box => box.value);
+  }
+
+  function updateCleanupTotal() {
+    const selected = new Set(selectedCleanup());
+    const total = cleanupCategories.reduce((sum, item) => sum + (selected.has(item.id) ? item.taille : 0), 0);
+    $('#cleanup-total-value').textContent = formatSize(total);
+    $('#cleanup-apply').textContent = 'Libérer ' + formatSize(total);
+    $('#cleanup-apply').disabled = selected.size === 0;
+    return total;
+  }
+
+  function createCleanupRow(category) {
+    const row = make('label', 'sk-row cleanup-row');
+    const box = make('input', 'cleanup-checkbox');
+    box.type = 'checkbox';
+    box.value = category.id;
+    box.checked = Boolean(category.cochee) && !category.desactivee;
+    box.disabled = Boolean(category.desactivee);
+    const main = make('div', 'sk-row-main');
+    const title = make('div', 'sk-row-title');
+    const explanation = make('div', 'sk-row-sub');
+    const risk = make('small', 'cleanup-risk');
+    title.textContent = category.titre;
+    explanation.textContent = category.desactivee ? category.raison : category.explication;
+    risk.textContent = category.risque + ' · ' + Number(category.nombre).toLocaleString('fr-FR') + ' élément(s).';
+    main.append(title, explanation, risk);
+    const size = make('strong', 'sk-row-end cleanup-size');
+    size.textContent = formatSize(category.taille);
+    row.append(box, main, size);
+    return row;
+  }
+
+  function renderCleanup(payload) {
+    cleanupCategories = Array.isArray(payload.categories) ? payload.categories : [];
+    $('#cleanup-list').replaceChildren(...cleanupCategories.map(createCleanupRow));
+    $('#cleanup-list').hidden = false;
+    $('#cleanup-total').hidden = false;
+    $('#cleanup-apply').hidden = false;
+    $('#cleanup-status').textContent = cleanupCategories.length
+      ? 'Aperçu terminé : rien n’a encore été touché.' : 'Je n’ai rien trouvé à ranger.';
+    updateCleanupTotal();
+  }
+
+  async function scanCleanup() {
+    $('#cleanup-status').textContent = 'Je regarde…';
+    $('#cleanup-scan').disabled = true;
+    try {
+      const payload = appBridge ? await appBridge.cleanup_scan()
+        : await fetch('/api/cleanup/scan', { cache: 'no-store' }).then(response => response.json());
+      renderCleanup(payload);
+    } catch (_) {
+      $('#cleanup-status').textContent = 'Je n’arrive pas à regarder les fichiers pour le moment.';
+    } finally {
+      $('#cleanup-scan').disabled = false;
+    }
+  }
+
+  function duplicateSelection() {
+    return [...duplicateSelected];
+  }
+
+  function updateDuplicateTotal() {
+    const selected = new Set(duplicateSelection());
+    let total = 0;
+    duplicateGroups.forEach(group => {
+      group.copies.forEach(copy => { if (selected.has(copy.chemin)) total += Number(group.taille) || 0; });
+    });
+    const button = $('#duplicates-apply');
+    button.textContent = 'Mettre ' + formatSize(total) + ' en quarantaine';
+    button.disabled = selected.size === 0;
+    return total;
+  }
+
+  function duplicateCopyRow(copy) {
+    const row = make('div', 'duplicate-copy');
+    if (copy.garder) {
+      const kept = make('span', 'duplicate-kept');
+      kept.textContent = 'gardée';
+      row.append(kept);
+    } else {
+      const box = make('input', 'cleanup-checkbox');
+      box.type = 'checkbox';
+      box.value = copy.chemin;
+      box.checked = duplicateSelected.has(copy.chemin);
+      box.setAttribute('aria-label', 'Proposer cette copie');
+      row.append(box);
+    }
+    const main = make('div', 'duplicate-copy-main');
+    const path = make('span', 'duplicate-path');
+    path.textContent = copy.dossier_lisible || copy.chemin;
+    path.title = copy.chemin;
+    const date = make('span', 'duplicate-date');
+    const parsed = new Date(copy.date_modif);
+    date.textContent = Number.isNaN(parsed.getTime()) ? String(copy.date_modif || '')
+      : 'Modifié le ' + parsed.toLocaleDateString('fr-FR');
+    const exclude = make('button', 'duplicate-exclude');
+    exclude.type = 'button';
+    exclude.textContent = 'Ne plus regarder ce dossier';
+    exclude.addEventListener('click', () => excludeDuplicateFolder(copy.chemin));
+    main.append(path, date, exclude);
+    const open = make('button', 'sk-btn sk-btn--secondary sk-btn--small duplicate-open');
+    open.type = 'button';
+    open.textContent = 'Ouvrir le dossier';
+    open.addEventListener('click', async () => {
+      if (!appBridge) return;
+      const result = await appBridge.open_folder(copy.chemin);
+      if (!result.ok) Sakura.toast(result.erreur || 'Je n’arrive pas à ouvrir ce dossier.', { kind: 'warn' });
+    });
+    row.append(main, open);
+    return row;
+  }
+
+  function duplicateCard(group) {
+    const card = make('article', 'sk-card duplicate-card');
+    const head = make('div', 'duplicate-card-head');
+    const name = make('strong', 'duplicate-name');
+    name.textContent = group.nom || 'Fichier identique';
+    name.title = name.textContent;
+    const size = make('span', 'sk-sub');
+    size.textContent = formatSize(group.taille);
+    head.append(name, size);
+    const copies = make('div');
+    copies.replaceChildren(...group.copies.map(duplicateCopyRow));
+    card.append(head, copies);
+    return card;
+  }
+
+  function renderDuplicates(payload) {
+    duplicateGroups = Array.isArray(payload.groups) ? payload.groups : [];
+    duplicateSelected = new Set();
+    const shownCount = duplicateGroups.reduce((sum, group) =>
+      sum + Math.max(0, (Array.isArray(group.copies) ? group.copies.length : 0) - 1), 0);
+    const duplicateCount = Number.isFinite(Number(payload.fichiers_en_double))
+      ? Number(payload.fichiers_en_double) : shownCount;
+    $('#duplicates-summary').textContent = duplicateCount.toLocaleString('fr-FR')
+      + ' fichier' + (duplicateCount === 1 ? '' : 's') + ' en double, '
+      + formatSize(payload.gain_total) + ' à gagner';
+    $('#duplicates-list').replaceChildren(...duplicateGroups.slice(0, duplicateVisible).map(duplicateCard));
+    $('#duplicates-results').hidden = false;
+    $('#duplicates-more').hidden = duplicateVisible >= duplicateGroups.length;
+    $('#duplicates-propose').disabled = duplicateCount === 0;
+    updateDuplicateTotal();
+  }
+
+  async function refreshDuplicatesResult() {
+    try {
+      const result = appBridge ? await appBridge.duplicates_result()
+        : await fetch('/api/duplicates', { cache: 'no-store' }).then(response => response.json());
+      if ((result.groups && result.groups.length) || result.fichiers_regardes) renderDuplicates(result);
+    } catch (_) { /* la section reste prête pour une première recherche */ }
+  }
+
+  async function scanDuplicates() {
+    if (!appBridge) return;
+    duplicateVisible = 50;
+    $('#duplicates-scan').disabled = true;
+    $('#duplicates-stop').hidden = false;
+    $('#duplicates-status').textContent = 'Je commence à regarder les fichiers…';
+    try {
+      await appBridge.duplicates_scan();
+      await pollDuplicates();
+    } catch (_) {
+      $('#duplicates-status').textContent = 'La recherche n’a pas pu se terminer.';
+      $('#duplicates-scan').disabled = false;
+      $('#duplicates-stop').hidden = true;
+    }
+  }
+
+  async function pollDuplicates() {
+    if (!appBridge) return;
+    let state;
+    try { state = await appBridge.duplicates_progress(); } catch (_) { state = null; }
+    if (!state) {
+      $('#duplicates-status').textContent = 'Je n’arrive pas à suivre la recherche.';
+      $('#duplicates-scan').disabled = false;
+      $('#duplicates-stop').hidden = true;
+      return;
+    }
+    $('#duplicates-status').textContent = state.texte || '';
+    if (state.en_cours) {
+      window.setTimeout(pollDuplicates, 250);
+      return;
+    }
+    $('#duplicates-scan').disabled = false;
+    $('#duplicates-stop').hidden = true;
+    if (state.resultat) renderDuplicates(state.resultat);
+  }
+
+  async function excludeDuplicateFolder(path) {
+    if (!appBridge) return;
+    const result = await appBridge.exclude_folder(path);
+    Sakura.toast(result.ok ? 'Je ne regarderai plus ce dossier.'
+      : (result.erreur || 'Je n’ai pas pu exclure ce dossier.'), { kind: result.ok ? 'ok' : 'warn' });
+    if (result.ok) scanDuplicates();
+  }
+
+  function createStartupRow(entry, readOnly = false) {
+    // une appli coupée est « éteinte » : plus de mise en avant, même si elle était jugée inutile
+    const off = entry.etat !== 'actif';
+    const warn = !off && entry.recommandation && entry.recommandation.niveau === 'inutile';
+    const row = make('article', 'sk-row startup-entry' + (warn ? ' is-warn' : '') + (off ? ' is-off' : ''));
+    const main = make('div', 'sk-row-main');
+    const title = make('div', 'sk-row-title');
+    const detail = make('div', 'sk-row-sub');
+    title.textContent = entry.nom || 'Programme';
+    const recommendation = entry.recommandation ? entry.recommandation.texte : '';
+    detail.textContent = [entry.editeur, recommendation, readOnly ? entry.raison : '']
+      .filter(Boolean).join(' · ');
+    main.append(title, detail);
+    const end = make('div', 'startup-state');
+    const state = make('span', 'sk-stat-state' + (off ? '' : warn ? ' is-warn' : ' is-ok'));
+    state.textContent = entry.etat;
+    end.append(state);
+    const canChange = entry.modifiable
+      && (!entry.recommandation || entry.recommandation.niveau !== 'a_garder');
+    if (canChange) {
+      const button = make('button', 'sk-btn sk-btn--secondary sk-btn--small');
+      button.type = 'button';
+      button.textContent = entry.etat === 'actif' ? 'Couper' : 'Remettre';
+      button.addEventListener('click', () => changeStartup(entry));
+      end.append(button);
+    }
+    row.append(main, end);
+    return row;
+  }
+
+  async function refreshStartup() {
+    try {
+      const payload = appBridge ? await appBridge.startup_list()
+        : await fetch('/api/startup', { cache: 'no-store' }).then(response => response.json());
+      const entries = Array.isArray(payload.entries) ? payload.entries : [];
+      const editable = entries.filter(entry => entry.modifiable);
+      const readOnly = entries.filter(entry => !entry.modifiable);
+      const empty = make('p', 'sk-sub');
+      empty.textContent = 'Aucun programme trouvé.';
+      $('#startup-list').replaceChildren(...(editable.length
+        ? editable.map(entry => createStartupRow(entry)) : [empty]));
+      $('#startup-readonly').replaceChildren(...readOnly.map(entry => createStartupRow(entry, true)));
+      $('#startup-details-button').hidden = readOnly.length === 0;
+    } catch (_) {
+      const message = make('p', 'sk-sub');
+      message.textContent = 'Je n’arrive pas à lire le démarrage pour le moment.';
+      $('#startup-list').replaceChildren(message);
+    }
+  }
+
+  async function changeStartup(entry) {
+    if (!appBridge) return;
+    const cutting = entry.etat === 'actif';
+    const confirmed = await Sakura.confirm({
+      title: (cutting ? 'Couper ' : 'Remettre ') + entry.nom + ' au démarrage ?',
+      text: cutting ? entry.recommandation.texte : 'Le programme se lancera de nouveau avec Windows.',
+      yes: cutting ? 'Oui, coupe ' + entry.nom + ' au démarrage' : 'Oui, remets ' + entry.nom,
+      no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    const result = cutting
+      ? await appBridge.startup_disable(entry.id) : await appBridge.startup_enable(entry.id);
+    Sakura.toast(result.message || result.erreur || 'Modification terminée.',
+      { kind: result.ok ? 'ok' : 'warn' });
+    await refreshStartup();
+    refreshActions();
+  }
+
+  async function refreshActions() {
+    try {
+      const payload = appBridge ? await appBridge.actions()
+        : await fetch('/api/actions', { cache: 'no-store' }).then(response => response.json());
+      const rows = Array.isArray(payload.actions) ? payload.actions : [];
+      const list = $('#actions-list');
+      if (!rows.length) {
+        const empty = make('p', 'sk-sub');
+        empty.textContent = 'Aucune action pour le moment.';
+        list.replaceChildren(empty);
+      } else {
+        list.replaceChildren(...rows.map(action => {
+          const row = make('article', 'sk-row action-row');
+          const main = make('div', 'sk-row-main');
+          const title = make('div', 'sk-row-title');
+          const detail = make('div', 'sk-row-sub');
+          title.textContent = action.resume || action['résumé'] || 'Action';
+          const date = new Date(action.date);
+          const size = action.type === 'demarrage' ? ''
+            : ' · ' + formatSize(action.place_gagnee || action['place gagnée']);
+          detail.textContent = (Number.isNaN(date.getTime()) ? action.date : date.toLocaleString('fr-FR'))
+            + size + ' · ' + (action.etat || action['état']);
+          main.append(title, detail);
+          row.append(main);
+          if (action.annulable && (action.etat || action['état']) === 'fait') {
+            const button = make('button', 'sk-btn sk-btn--secondary sk-btn--small');
+            button.type = 'button';
+            button.textContent = action.type === 'demarrage' ? 'Remettre' : 'Annuler';
+            button.addEventListener('click', () => undoAction(action.id, title.textContent));
+            row.append(button);
+          }
+          return row;
+        }));
+      }
+      const quarantine = payload.quarantaine || {};
+      $('#quarantine-size').textContent = 'Quarantaine : ' + formatSize(quarantine.taille)
+        + (quarantine.disque ? ' sur ' + quarantine.disque : '');
+      $('#empty-quarantine').disabled = !(Number(quarantine.taille) > 0);
+    } catch (_) {
+      const message = make('p', 'sk-sub');
+      message.textContent = 'Je n’arrive pas à lire le journal pour le moment.';
+      $('#actions-list').replaceChildren(message);
+    }
+  }
+
+  async function undoAction(identifier, summary) {
+    if (!appBridge) return;
+    const startupAction = summary.toLocaleLowerCase('fr-FR').includes('démarrage');
+    const confirmed = await Sakura.confirm({
+      title: startupAction ? 'Remettre ce programme au démarrage ?' : 'Remettre ces fichiers ?',
+      text: startupAction ? summary + ' sera annulé.'
+        : summary + ' sera annulé et les fichiers retourneront à leur place.',
+      yes: startupAction ? 'Oui, remets-le' : 'Oui, remets-les', no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    const result = await appBridge.undo(identifier);
+    Sakura.toast(result.ok ? (result.message || Number(result.restaures).toLocaleString('fr-FR') + ' fichier(s) remis en place.')
+      : (result.erreur || 'Je n’ai pas pu annuler cette action.'), { kind: result.ok ? 'ok' : 'warn' });
+    refreshActions();
+    refreshStartup();
+  }
 
   const verdicts = {
     ok: { emoji: '😊', tag: '調子いい · TOUT VA BIEN' },
@@ -369,6 +721,7 @@
 
   async function start() {
     const bridge = await waitForApi();
+    appBridge = bridge;
     if (bridge) {
       try { Sakura.setTheme(await bridge.get_theme()); } catch (_) { /* thème du kit conservé */ }
       Sakura.onThemeChange(theme => { bridge.set_theme(theme); });
@@ -450,13 +803,105 @@
   });
 
   $('#free-space').addEventListener('click', async () => {
-    if (!api()) return;
+    const tab = $('#optimizer-tabs').querySelector('[data-tab="cleanup"]');
+    if (tab) tab.click();
+  });
+
+  $('#cleanup-scan').addEventListener('click', scanCleanup);
+  $('#cleanup-list').addEventListener('change', updateCleanupTotal);
+  $('#duplicates-scan').addEventListener('click', scanDuplicates);
+  $('#duplicates-stop').addEventListener('click', async () => {
+    if (appBridge) await appBridge.duplicates_cancel();
+  });
+  $('#duplicates-list').addEventListener('change', event => {
+    const box = event.target;
+    if (!box || box.type !== 'checkbox') return;
+    if (box.checked) duplicateSelected.add(box.value);
+    else duplicateSelected.delete(box.value);
+    updateDuplicateTotal();
+  });
+  $('#duplicates-propose').addEventListener('click', () => {
+    duplicateSelected = new Set();
+    duplicateGroups.forEach(group => group.copies.forEach(copy => {
+      if (!copy.garder) duplicateSelected.add(copy.chemin);
+    }));
+    $('#duplicates-list').querySelectorAll('input[type="checkbox"]').forEach(box => { box.checked = true; });
+    updateDuplicateTotal();
+  });
+  $('#duplicates-more').addEventListener('click', () => {
+    duplicateVisible += 50;
+    $('#duplicates-list').replaceChildren(...duplicateGroups.slice(0, duplicateVisible).map(duplicateCard));
+    $('#duplicates-more').hidden = duplicateVisible >= duplicateGroups.length;
+    updateDuplicateTotal();
+  });
+  $('#duplicates-apply').addEventListener('click', async () => {
+    if (!appBridge) return;
+    const selection = duplicateSelection();
+    const total = updateDuplicateTotal();
+    if (!selection.length) return;
+    const confirmed = await Sakura.confirm({
+      title: 'Mettre ' + formatSize(total) + ' en quarantaine ?',
+      text: 'Tu pourras remettre ces fichiers depuis « Ce que j’ai fait ».',
+      yes: 'Oui, range ces ' + selection.length + ' fichier' + (selection.length === 1 ? '' : 's'),
+      no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    $('#duplicates-apply').disabled = true;
     try {
-      await api().free_space();
-      Sakura.toast("J'ouvre les réglages de stockage de Windows.");
+      const result = await appBridge.duplicates_apply(selection);
+      const ignored = Number(result.ignores) || 0;
+      let message = result.deplaces
+        ? formatSize(result.place_gagnee) + ' mis en quarantaine.'
+        : 'Aucun fichier n’a été déplacé.';
+      if (ignored) message += ' ' + ignored.toLocaleString('fr-FR') + ' laissé(s) en place.';
+      Sakura.toast(message, { kind: result.ok ? 'ok' : 'warn' });
+      if (result.resultat) renderDuplicates(result.resultat);
+      refreshActions();
     } catch (_) {
-      Sakura.toast("Je n'arrive pas à ouvrir les réglages de stockage.", { kind: 'warn' });
+      Sakura.toast('Je n’ai pas pu ranger ces fichiers.', { kind: 'warn' });
+    } finally {
+      updateDuplicateTotal();
     }
+  });
+  $('#cleanup-apply').addEventListener('click', async () => {
+    if (!appBridge) return;
+    const identifiers = selectedCleanup();
+    const total = updateCleanupTotal();
+    const recycle = identifiers.includes('corbeille');
+    const confirmed = await Sakura.confirm({
+      title: 'Libérer ' + formatSize(total) + ' ?',
+      text: 'Les autres fichiers resteront 7 jours en quarantaine.'
+        + (recycle ? ' La corbeille sera vidée pour de bon.' : ''),
+      yes: 'Oui, libère ' + formatSize(total), no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    $('#cleanup-status').textContent = 'Je fais le ménage…';
+    $('#cleanup-apply').disabled = true;
+    try {
+      const result = await appBridge.cleanup_apply(identifiers);
+      const message = formatSize(result.place_gagnee) + ' libérés, '
+        + Number(result.ignores).toLocaleString('fr-FR') + ' fichiers en cours d’utilisation laissés en place';
+      Sakura.toast(message + '.', { kind: result.erreur_corbeille ? 'warn' : 'ok' });
+      await scanCleanup();
+      refreshActions();
+    } catch (_) {
+      Sakura.toast('Le ménage n’a pas pu se terminer.', { kind: 'warn' });
+    } finally {
+      $('#cleanup-apply').disabled = false;
+    }
+  });
+
+  $('#empty-quarantine').addEventListener('click', async () => {
+    if (!appBridge) return;
+    const confirmed = await Sakura.confirm({
+      title: 'Vider la quarantaine maintenant ?',
+      text: 'C’est définitif : ces fichiers ne pourront plus être remis.',
+      yes: 'Oui, vide pour de bon', no: 'Non, laisse'
+    });
+    if (!confirmed) return;
+    const result = await appBridge.empty_quarantine();
+    Sakura.toast(formatSize(result.octets) + ' supprimés pour de bon.');
+    refreshActions();
   });
 
   start();

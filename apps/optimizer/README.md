@@ -77,6 +77,66 @@ python optimizer.py diagnose --minutes 5 --json
 
 La première commande donne une explication simple. La seconde renvoie le résultat complet au format JSON.
 
+## Ménage
+
+L'onglet **Ménage** commence toujours par un aperçu : il indique exactement la place et le nombre d'éléments,
+sans rien modifier. Les fichiers confirmés sont déplacés pendant 7 jours dans une quarantaine sur le disque fixe
+hors C: qui a le plus de place ; s'il n'y en a pas, elle reste dans le dossier utilisateur Sakura PC. L'onglet
+**Ce que j'ai fait** permet de les remettre ou de vider définitivement la quarantaine.
+
+La corbeille est différente : Windows la vide pour de bon, uniquement après une confirmation qui le dit clairement.
+Opera GX doit être fermé avant de vider son cache. Tout fonctionne avec un compte Windows normal, sans droits
+administrateur.
+
+Commandes prévues pour Sakura AI :
+
+```powershell
+python optimizer.py cleanup --preview --json
+python optimizer.py cleanup --apply temp,plantages --json
+python optimizer.py actions --json
+python optimizer.py undo <id> --json
+```
+
+## Démarrage de Windows
+
+Dans l'onglet **Ménage**, la section **Au démarrage de Windows** montre les programmes lancés avec Windows.
+Une entrée de ton compte peut être coupée puis remise en un clic. Pour que cela fonctionne aussi quand Sakura
+Launcher remplace le bureau Windows, une entrée `Run` coupée est retirée du Registre et sa commande exacte est
+gardée dans le journal. Les raccourcis sont rangés dans `%APPDATA%\SakuraPC\demarrage_coupe`, hors de la
+quarantaine, et les applications du Store retrouvent leur état précédent lors de la remise.
+
+Les réglages communs à tous les comptes restent en lecture seule : l'Optimizer ne demande jamais les droits
+administrateur. Les applications lancées par Sakura Launcher se règlent dans **Sakura Launcher › Réglages ›
+Démarrage**.
+
+Commandes prévues pour Sakura AI :
+
+```powershell
+python optimizer.py startup --json
+python optimizer.py startup --disable <id> --json
+python optimizer.py startup --enable <id> --json
+```
+
+## Fichiers en double
+
+La troisième section de l’onglet **Ménage** cherche les contenus strictement identiques dans les dossiers connus
+Documents, Téléchargements, Images, Vidéos, Musique et Bureau. Elle regarde seulement les formats courants de
+photos, vidéos, musique, documents et archives. Les installeurs `.exe` et `.msi` sont acceptés uniquement lorsqu’ils
+traînent directement dans Documents, Téléchargements ou le Bureau.
+
+Les petits fichiers sont laissés tranquilles. Sakura ne parcourt jamais les projets de code, les liens et jonctions,
+les fichiers OneDrive en ligne seulement, les dossiers de logiciels, de jeux, de plugins ou de banques de sons, ni
+les dossiers que tu as exclus. Une copie n’est proposée que si son contenu entier est identique à celui de la copie
+gardée. Rien n’est coché automatiquement.
+
+Les copies que tu confirmes vont dans la même quarantaine annulable que le ménage pendant 7 jours. Les fichiers sont
+revérifiés juste avant leur déplacement et Sakura refuse toujours d’enlever toutes les copies d’un groupe. La commande
+suivante fait seulement l’analyse, sans aucune action :
+
+```powershell
+python optimizer.py duplicates --json
+```
+
 ## Outil technique
 
 Le moniteur terminal reste disponible pour le diagnostic technique :

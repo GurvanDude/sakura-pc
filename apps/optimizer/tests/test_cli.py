@@ -29,3 +29,36 @@ def test_commande_diagnose_accepte_minutes_et_json():
     assert args.command == 'diagnose'
     assert args.minutes == 15
     assert args.json is True
+
+
+def test_commandes_menage_actions_et_annulation():
+    parser = build_parser()
+
+    preview = parser.parse_args(['cleanup', '--preview', '--json'])
+    apply = parser.parse_args(['cleanup', '--apply', 'temp,plantages', '--json'])
+    actions = parser.parse_args(['actions', '--json'])
+    undo = parser.parse_args(['undo', 'abc123', '--json'])
+
+    assert preview.preview is True and preview.json is True
+    assert apply.apply == 'temp,plantages' and apply.json is True
+    assert actions.command == 'actions' and actions.json is True
+    assert undo.command == 'undo' and undo.id == 'abc123' and undo.json is True
+
+
+def test_commande_startup_liste_coupe_et_remet():
+    parser = build_parser()
+
+    listing = parser.parse_args(['startup', '--json'])
+    disable = parser.parse_args(['startup', '--disable', 'run-123', '--json'])
+    enable = parser.parse_args(['startup', '--enable', 'run-123'])
+
+    assert listing.command == 'startup' and listing.json is True
+    assert disable.disable == 'run-123' and disable.json is True
+    assert enable.enable == 'run-123'
+
+
+def test_commande_duplicates_analyse_seulement():
+    args = build_parser().parse_args(['duplicates', '--json'])
+
+    assert args.command == 'duplicates'
+    assert args.json is True

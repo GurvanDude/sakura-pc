@@ -22,9 +22,28 @@ from sakura_opt.history_mutex import acquire_history_mutex  # noqa: E402
 from sakura_opt.names import add_friendly_names  # noqa: E402
 from sakura_opt.sensors import Sampler  # noqa: E402
 from sakura_opt.temps import read_temps  # noqa: E402
+from sakura_opt.actions import purge_quarantine  # noqa: E402
 
 
 STOP_FILE = paths.USER / "history.stop"
+PURGE_INTERVAL = 60 * 60
+
+
+def purge_if_due(
+    last_purge: float,
+    *,
+    now: Callable[[], float] = time.monotonic,
+    purifier: Callable[[], Any] = purge_quarantine,
+) -> float:
+    """Purge au plus une fois par heure, même si l'enregistreur tourne en continu."""
+    current = now()
+    if current - last_purge < PURGE_INTERVAL:
+        return last_purge
+    try:
+        purifier()
+    except Exception:
+        logging.exception("Erreur pendant la purge de la quarantaine")
+    return current
 
 
 def record_once(
@@ -58,9 +77,11 @@ def main() -> None:
     history = History()
     errors: dict[str, float] = {}
     mutex = None
+    last_purge = -PURGE_INTERVAL
     logging.info("Enregistreur d'historique démarré")
     try:
         while not STOP_FILE.exists():
+            last_purge = purge_if_due(last_purge)
             if mutex is None:
                 mutex = acquire_history_mutex()
                 if mutex is None:

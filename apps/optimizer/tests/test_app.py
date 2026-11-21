@@ -37,6 +37,64 @@ class FakeHistory:
         return {"duration_s": 600, "top_app": "Jeu", "avg_cpu": 20}
 
 
+class FakeCleanup:
+    def scan(self):
+        return {"categories": [{"id": "temp", "taille": 12}], "taille_totale": 12}
+
+    def apply(self, identifiers):
+        return {"ok": True, "ids": list(identifiers), "place_gagnee": 12}
+
+
+class FakeActions:
+    def list_actions(self):
+        return [{"id": "action-1", "etat": "fait"}]
+
+    def quarantine_info(self):
+        return {"taille": 12, "disque": "D:"}
+
+    def undo(self, identifier):
+        return {"ok": True, "id": identifier}
+
+    def purge(self):
+        return {"ok": True, "actions_purgees": 0}
+
+    def empty(self):
+        return {"ok": True, "octets": 12}
+
+
+class FakeStartup:
+    def list_entries(self):
+        return [{"id": "run-1", "nom": "Steam", "etat": "actif"}]
+
+    def disable(self, identifier):
+        return {"ok": True, "id": identifier, "message": "Entrée coupée."}
+
+    def enable(self, identifier):
+        return {"ok": True, "id": identifier, "message": "Entrée remise."}
+
+
+class FakeDuplicates:
+    def __init__(self):
+        self.last_result = {
+            "groups": [{"id": "double-1", "copies": []}],
+            "fichiers_regardes": 2, "gain_total": 12,
+        }
+
+    def scan(self, progress=None, cancel=None):
+        if progress:
+            progress(2)
+        return self.last_result
+
+    def apply(self, selection):
+        return {"ok": True, "selection": list(selection)}
+
+    def open_folder(self, path):
+        return {"ok": path == "vu.txt"}
+
+    def exclude_folder(self, path):
+        return {"ok": True, "dossier": path}
+
+
 def test_free_space_utilise_l_ouvreur_injecte(tmp_path):
     opened = []
     api = Api(FakeMonitor(), theme_path=tmp_path / "theme.json", opener=opened.append)
@@ -81,6 +139,27 @@ def test_get_history_renvoie_les_series_et_la_vue(tmp_path):
     assert "Jeu" in payload["view"]["sentence"]
 
 
+def test_api_menage_et_actions_sont_injectables(tmp_path):
+    api = Api(
+        FakeMonitor(), theme_path=tmp_path / "theme.json",
+        cleanup=FakeCleanup(), action_manager=FakeActions(), startup=FakeStartup(),
+        duplicates=FakeDuplicates(),
+    )
+
+    assert api.cleanup_scan()["taille_totale"] == 12
+    assert api.cleanup_apply(["temp"])["ids"] == ["temp"]
+    assert api.actions()["quarantaine"]["disque"] == "D:"
+    assert api.undo("action-1")["ok"] is True
+    assert api.purge_quarantine()["ok"] is True
+    assert api.startup_list()["entries"][0]["id"] == "run-1"
+    assert api.startup_disable("run-1")["ok"] is True
+    assert api.startup_enable("run-1")["ok"] is True
+    assert api.duplicates_result()["gain_total"] == 12
+    assert api.duplicates_apply(["vu.txt"])["selection"] == ["vu.txt"]
+    assert api.open_folder("hors.txt")["ok"] is False
+    assert api.exclude_folder("dossier")["ok"] is True
+
+
 def test_fenetre_n_enregistre_pas_si_mutex_deja_pris():
     history = FakeHistory()
     monitor = Monitor(sampler=object(), history=history, mutex_factory=lambda: None, start=False)
@@ -107,7 +186,11 @@ def test_theme_par_defaut_suit_les_horaires_du_launcher(tmp_path):
 
 @pytest.fixture
 def local_server(tmp_path):
-    api = Api(FakeMonitor(), theme_path=tmp_path / "theme.json", history=FakeHistory())
+    api = Api(
+        FakeMonitor(), theme_path=tmp_path / "theme.json", history=FakeHistory(),
+        cleanup=FakeCleanup(), action_manager=FakeActions(), startup=FakeStartup(),
+        duplicates=FakeDuplicates(),
+    )
     server, port = _serve(api)
     try:
         yield f"http://127.0.0.1:{port}"
@@ -129,6 +212,18 @@ def test_server_sert_le_kit_et_la_vue_json(local_server):
         diagnostic = json.load(response)
     assert diagnostic["minutes"] == 2
     assert isinstance(diagnostic["findings"], list)
+    with urlopen(local_server + "/api/cleanup/scan") as response:
+        cleanup = json.load(response)
+    assert cleanup["categories"][0]["id"] == "temp"
+    with urlopen(local_server + "/api/actions") as response:
+        actions = json.load(response)
+    assert actions["actions"][0]["id"] == "action-1"
+    with urlopen(local_server + "/api/startup") as response:
+        startup = json.load(response)
+    assert startup["entries"][0]["id"] == "run-1"
+    with urlopen(local_server + "/api/duplicates") as response:
+        duplicates = json.load(response)
+    assert duplicates["groups"][0]["id"] == "double-1"
 
 
 @pytest.mark.parametrize(
