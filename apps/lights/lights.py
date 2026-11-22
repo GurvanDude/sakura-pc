@@ -187,6 +187,7 @@ class Lights:
         self.corsair_t = 0.0                   # moment où la RAM est passée sous notre contrôle
         self.ram_orgb, self.ram_buf, self.ram_last, self.ram_sent = [], {}, {}, 0.0   # RAM pilotée par OpenRGB
         self.ram_devs, self.ram_claim_t, self.ram_err = [], 0.0, None   # barrettes, dernière reprise de contrôle
+        self.icue_allowed = False              # iCUE ouvert depuis la fenêtre : on ne le referme plus
         self.parked = False                    # Windows s'éteint : tout est noir, on n'envoie plus rien
         # carte mère : sa puce est lente, on lui envoie UN paquet pour tout l'appareil, 15 fois par seconde au plus,
         # et seulement si les couleurs ont changé (sinon OpenRGB accumule une file d'attente)
@@ -588,14 +589,16 @@ class Lights:
         import psutil
         names = {n.lower() for n in json.loads(CONFIG.read_text(encoding='utf-8'))['settings']
                  .get('rgb_conflicts', ['GCC.exe', 'GBT_DL_LIB.exe'])}
-        if RAM_DRIVER == 'openrgb':
+        settings = json.loads(CONFIG.read_text(encoding='utf-8'))['settings']
+        if RAM_DRIVER == 'openrgb' and not settings.get('garder_icue', False):   # garder_icue : le micro du casque Corsair en a besoin
             names |= {'icue.exe', 'icue launcher.exe'}   # iCUE se battrait avec OpenRGB pour la RAM
         while True:
             if time.time() < self.conflicts_paused_until:   # pause demandée depuis l'appli (régler GIGABYTE)
                 time.sleep(3)
                 continue
+            allowed = {'icue.exe', 'icue launcher.exe'} if self.icue_allowed else set()
             for p in psutil.process_iter(['name']):
-                if (p.info['name'] or '').lower() in names:
+                if (p.info['name'] or '').lower() in names - allowed:
                     try:
                         p.kill()
                         log.info("fermé (conflit d'éclairage) : %s", p.info["name"])
@@ -870,6 +873,11 @@ class Lights:
                     return self.reply(200, design_file.read_bytes(), content_type)
                 if url.path == '/api/state':
                     return self.reply(200, lights.state())
+                if url.path == '/api/icue':
+                    lights.icue_allowed = True
+                    if not open_icue():
+                        return self.reply(404, {'error': "iCUE n'est pas installé à l'endroit prévu"})
+                    return self.reply()
                 if url.path == '/api/revert':
                     with lights.lock:
                         lights.load()
@@ -993,13 +1001,28 @@ def ready():
 def start_icue():
     """Lance iCUE tout de suite s'il ne tourne pas (au démarrage, Windows ne le lance qu'avec le bureau, trop tard)."""
     import psutil
-    exe = json.loads(CONFIG.read_text(encoding='utf-8'))['settings'].get(
-        'icue', r'C:\Program Files\Corsair\Corsair iCUE5 Software\iCUE.exe')
+    exe = icue_path()
     if RAM_DRIVER != 'icue':
         return
     if Path(exe).exists() and not any((p.info['name'] or '').lower() == 'icue.exe' for p in psutil.process_iter(['name'])):
         subprocess.Popen([exe, '--autorun'], cwd=str(Path(exe).parent), creationflags=0x00000008)
         log.info('iCUE lancé en avance')
+
+
+def icue_path():
+    return Path(json.loads(CONFIG.read_text(encoding='utf-8'))['settings'].get(
+        'icue', r'C:\Program Files\Corsair\Corsair iCUE5 Software\iCUE.exe'))
+
+
+def open_icue(popen=subprocess.Popen):
+    """Ouvre la fenêtre d'iCUE (ou la ramène devant si iCUE tourne déjà). Faux si iCUE est introuvable."""
+    exe = icue_path()
+    if not exe.exists():
+        log.warning('iCUE introuvable : %s', exe)
+        return False
+    popen([str(exe)], cwd=str(exe.parent), creationflags=0x00000008)
+    log.info('iCUE ouvert depuis la fenêtre')
+    return True
 
 
 GUARD_SECONDS = 180   # après une annonce d'extinction, combien de temps le gardien surveille le service
