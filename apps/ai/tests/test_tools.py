@@ -381,6 +381,8 @@ def test_ai_nimporte_jamais_le_code_optimizer():
     ai_root = Path(__file__).resolve().parents[1]
     forbidden = []
     for source in ai_root.rglob("*.py"):
+        if "vendor" in source.relative_to(ai_root).parts:
+            continue  # paquets tiers installés pour la voix
         tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
         for node in ast.walk(tree):
             names = []

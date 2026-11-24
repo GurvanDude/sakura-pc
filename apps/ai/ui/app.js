@@ -4,10 +4,17 @@ const appLayout = $('#app-layout');
 const conversation = $('#conversation');
 const input = $('#message');
 const sendButton = $('#send');
+const microphoneButton = $('#microphone');
+const composerHint = $('#composer-hint');
 let answering = false;
 let currentAnswer = null;
 let currentChatId = null;
 let followBottom = true;
+let listening = false;
+let voiceEnabled = false;
+let voiceAutoSend = true;
+let voiceAvailability = { stt: false, tts: false, message: "La voix n'est pas encore installée." };
+const defaultComposerHint = 'Entrée pour envoyer · Maj + Entrée pour aller à la ligne';
 
 function escapeHtml(text) {
   return String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -124,6 +131,51 @@ function resizeInput() {
 function showNotice(message) { $('#notice-text').textContent = message; $('#notice').hidden = false; }
 function warn(message) { Sakura.toast(message, { kind: 'warn' }); }
 function askConfirm(bubble, options) { return Sakura.confirm({ into: bubble, ...options }); }
+
+function updateVoiceButton() {
+  if (!voiceButton) return;
+  voiceButton.textContent = voiceEnabled ? '🔊 Voix' : '🔇 Voix';
+  voiceButton.setAttribute('aria-pressed', String(voiceEnabled));
+}
+
+async function loadVoice() {
+  try {
+    const [availability, settings] = await Promise.all([
+      window.pywebview.api.voice_status(),
+      window.pywebview.api.voice_settings(),
+    ]);
+    voiceAvailability = availability;
+    voiceEnabled = Boolean(settings.enabled);
+    voiceAutoSend = settings.auto_send !== false;
+    updateVoiceButton();
+  } catch (_) {
+    voiceAvailability = { stt: false, tts: false, message: "La voix n'est pas encore installée." };
+  }
+}
+
+async function toggleVoice() {
+  if (!voiceAvailability.tts) { warn(voiceAvailability.message); return; }
+  try {
+    const result = await window.pywebview.api.set_voice(!voiceEnabled);
+    if (!result.ok) { warn(result.message); return; }
+    voiceEnabled = result.enabled;
+    voiceAutoSend = result.auto_send !== false;
+    updateVoiceButton();
+  } catch (_) { warn("Le réglage de voix n'a pas pu être modifié."); }
+}
+
+async function toggleListening() {
+  if (listening) {
+    try { await window.pywebview.api.listen_stop(); }
+    catch (_) { warn("Je n'ai pas réussi à arrêter le micro."); }
+    return;
+  }
+  if (!voiceAvailability.stt) { warn(voiceAvailability.message); return; }
+  try {
+    const result = await window.pywebview.api.listen_start();
+    if (!result.ok) warn(result.message);
+  } catch (_) { warn("Je n'ai pas réussi à ouvrir le micro."); }
+}
 
 async function checkStatus() {
   $('#retry').disabled = true;
@@ -329,15 +381,38 @@ window.onError = message => {
 
 window.onChatsChanged = async () => { await loadChats(); };
 
+window.onListen = event => {
+  const state = event?.state;
+  listening = state === 'listening' || state === 'transcribing';
+  microphoneButton.classList.toggle('is-listening', state === 'listening');
+  microphoneButton.setAttribute('aria-pressed', String(listening));
+  if (state === 'listening') composerHint.textContent = "Je t'écoute…";
+  else if (state === 'transcribing') composerHint.textContent = 'Je transcris…';
+  else composerHint.textContent = defaultComposerHint;
+
+  if (state === 'done' && event.text) {
+    input.value = event.text;
+    resizeInput();
+    if (voiceAutoSend && !answering) send();
+    else input.focus();
+  } else if (state === 'error') {
+    warn(event.message || "Je n'ai pas réussi à écouter le micro.");
+  }
+};
+
 const titlebar = Sakura.titlebar({
   title: 'Sakura AI',
   actions: [
     { label: '☰' },
     { label: '＋ Nouvelle discussion', onClick: newChat },
+    { label: '🔇 Voix', onClick: toggleVoice },
   ],
 });
 const titleActions = titlebar.querySelectorAll('.sk-titlebar-actions .sk-btn');
 titleActions[0]?.setAttribute('aria-label', 'Afficher ou masquer les discussions');
+const voiceButton = titleActions[2];
+voiceButton?.setAttribute('aria-label', 'Activer ou désactiver la voix de Sakura');
+updateVoiceButton();
 appWindow.insertBefore(titlebar, appWindow.firstChild);
 Sakura.decor(appWindow, { torii: 'faint' });
 const sidebar = Sakura.sidebar(appLayout, { toggle: titleActions[0] });
@@ -350,7 +425,14 @@ input.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); }
 });
 sendButton.addEventListener('click', send);
+microphoneButton.addEventListener('click', toggleListening);
 $('#retry').addEventListener('click', checkStatus);
+document.addEventListener('keydown', event => {
+  if (event.ctrlKey && event.code === 'Space') {
+    event.preventDefault();
+    toggleListening();
+  }
+});
 
 window.addEventListener('pywebviewready', async () => {
   try {
@@ -361,4 +443,5 @@ window.addEventListener('pywebviewready', async () => {
   resizeInput();
   input.focus();
   checkStatus();
+  await loadVoice();
 });

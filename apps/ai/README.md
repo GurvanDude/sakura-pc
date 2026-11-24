@@ -28,6 +28,23 @@ En plus de répondre aux messages, Sakura peut maintenant utiliser des outils lo
 
 Les actions et les confirmations sont journalisées sans enregistrer le contenu des messages.
 
+## Voix locale
+
+Sakura peut écouter le micro avec Whisper puis lire ses réponses avec Kokoro. L'enregistrement, la transcription
+et la synthèse restent entièrement sur le PC : aucun son ni texte dicté n'est envoyé en ligne ou écrit sur disque.
+
+L'installation est séparée des dépendances principales. Depuis la racine du dépôt, lance ce script (un
+double-clic sur le fichier fonctionne aussi) :
+
+```powershell
+python apps/ai/tools/setup_voice.py
+```
+
+Le script installe les paquets dans `apps/ai/vendor/site-packages/` et place les modèles dans
+`apps/ai/vendor/models/`. Il peut être relancé sans retélécharger les fichiers déjà complets. Une fois
+l'installation finie, le bouton **🎤** permet de dicter un message, `Ctrl + Espace` démarre ou arrête l'écoute,
+et la pilule **🔊 Voix** active ou coupe la lecture des réponses.
+
 ## Contrat avec Sakura Optimizer
 
 Sakura AI n'importe aucun code de l'Optimizer. Pour expliquer pourquoi le PC rame, elle lance uniquement sa
@@ -73,7 +90,7 @@ python apps/ai/ai.py
 
 ## Tester
 
-Les tests n'utilisent ni Internet ni un vrai serveur Ollama :
+Les tests n'utilisent ni Internet, ni vrai serveur Ollama, ni micro ou haut-parleur :
 
 ```powershell
 python -m pytest apps/ai/tests -q

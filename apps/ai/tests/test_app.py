@@ -1,6 +1,7 @@
 """Tests de l'API pywebview et du serveur statique."""
 
 import http.client
+import json
 import logging
 import threading
 
@@ -117,3 +118,59 @@ def test_api_refuse_de_changer_la_conversation_pendant_une_reponse(sakura_home):
         "ok": False,
         "message": "Arrête d'abord la réponse en cours.",
     }
+
+
+def test_reglage_voix_preserve_toute_la_configuration(monkeypatch, sakura_home):
+    from core import paths
+
+    original = {
+        "launcher": {"theme": "night"},
+        "ai": {"model": "qwen3:14b", "autre": 7},
+        "inconnue": [1, 2, 3],
+    }
+    paths.CONFIG.write_text(json.dumps(original), encoding="utf-8")
+    monkeypatch.setattr(app.voice, "status", lambda: {"stt": True, "tts": True, "message": "Prête"})
+    api = Api(history=ChatHistory(), logger=logging.getLogger("sakura.ai.voice.settings.test"))
+
+    assert api.set_voice(True)["ok"] is True
+    saved = json.loads(paths.CONFIG.read_text(encoding="utf-8"))
+    assert saved["launcher"] == original["launcher"]
+    assert saved["inconnue"] == original["inconnue"]
+    assert saved["ai"]["model"] == "qwen3:14b"
+    assert saved["ai"]["autre"] == 7
+    assert saved["ai"]["voice"] == {"enabled": True, "auto_send": True}
+
+
+def test_reglage_voix_ne_recrit_pas_une_configuration_illisible(sakura_home):
+    from core import paths
+
+    paths.CONFIG.write_text("{cassé", encoding="utf-8")
+    api = Api(history=ChatHistory(), logger=logging.getLogger("sakura.ai.voice.invalid.test"))
+
+    assert api.set_voice(False)["ok"] is False
+    assert paths.CONFIG.read_text(encoding="utf-8") == "{cassé"
+
+
+def test_listen_start_refuse_une_deuxieme_ecoute(monkeypatch, sakura_home):
+    release = threading.Event()
+
+    class Listener:
+        def listen(self, on_transcribing):
+            release.wait(2)
+            on_transcribing()
+            return ""
+
+        def stop(self):
+            release.set()
+
+    monkeypatch.setattr(app.voice, "status", lambda: {"stt": True, "tts": True, "message": "Prête"})
+    api = Api(
+        history=ChatHistory(),
+        logger=logging.getLogger("sakura.ai.voice.listen.test"),
+        listener=Listener(),
+    )
+
+    assert api.listen_start() == {"ok": True}
+    assert api.listen_start() == {"ok": False, "message": "Je t'écoute déjà."}
+    api.listen_stop()
+    release.set()
