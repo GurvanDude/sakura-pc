@@ -96,3 +96,21 @@ def test_park_starts_guard_once(lights_module, monkeypatch):
 def test_process_alive_sees_itself(lights_module):
     import os
     assert lights_module.process_alive(os.getpid()) is True
+
+
+def test_open_icue_launches_the_configured_exe(lights_module, tmp_path):
+    exe = tmp_path / 'iCUE.exe'
+    exe.write_bytes(b'')
+    config = json.loads(lights_module.CONFIG.read_text(encoding='utf-8'))
+    config['settings']['icue'] = str(exe)
+    lights_module.CONFIG.write_text(json.dumps(config), encoding='utf-8')
+    calls = []
+    assert lights_module.open_icue(popen=lambda args, **kw: calls.append(args)) is True
+    assert calls == [[str(exe)]]
+
+
+def test_open_icue_says_no_when_missing(lights_module, tmp_path):
+    config = json.loads(lights_module.CONFIG.read_text(encoding='utf-8'))
+    config['settings']['icue'] = str(tmp_path / 'absent.exe')
+    lights_module.CONFIG.write_text(json.dumps(config), encoding='utf-8')
+    assert lights_module.open_icue(popen=lambda *a, **k: None) is False
