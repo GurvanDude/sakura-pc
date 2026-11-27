@@ -17,6 +17,7 @@ ALLOWED = {
     'optimizer': ['apps/optimizer/', 'docs/roadmaps/optimizer.md'],
     'ai': ['apps/ai/', 'docs/roadmaps/ai.md'],
     'robot': ['apps/robot/', 'docs/roadmaps/robot.md'],
+    'musique': ['apps/musique/', 'docs/roadmaps/musique.md'],
     # le socle commun : code partagé, DA, docs, outillage du dépôt
     'shared': ['core/', 'design/', 'docs/', '.github/', '.githooks/', 'README.md', 'CLAUDE.md', '.gitignore', 'LICENSE'],
 }
