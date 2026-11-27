@@ -6,6 +6,7 @@ import functools
 import http.server
 import json
 import logging
+import os
 import re
 import socketserver
 import threading
@@ -17,6 +18,7 @@ from urllib.parse import unquote, urlsplit
 from core import paths
 from core import window as sk_window
 from sakura_ai import brain
+from sakura_ai import voice
 from sakura_ai.history import ChatHistory, ChatStore
 from sakura_ai.tools import Tool, ToolRegistry
 
@@ -25,6 +27,9 @@ REPO = ROOT.parents[1]
 UI_ROOT = (ROOT / "ui").resolve()
 DESIGN_ROOT = (REPO / "design").resolve()
 CONFIRM_TIMEOUT = 120.0
+VOICE_DEFAULTS = {"enabled": False, "auto_send": True}
+
+voice.vendor_path()
 
 
 def _token(name: str, fallback: str) -> str:
@@ -46,6 +51,58 @@ def _logger() -> logging.Logger:
     return logger
 
 
+def _voice_settings() -> dict[str, bool]:
+    settings = dict(VOICE_DEFAULTS)
+    try:
+        if not paths.CONFIG.exists():
+            return settings
+        payload = json.loads(paths.CONFIG.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return settings
+    if not isinstance(payload, dict):
+        return settings
+    ai = payload.get("ai")
+    configured = ai.get("voice") if isinstance(ai, dict) else None
+    if isinstance(configured, dict):
+        if isinstance(configured.get("enabled"), bool):
+            settings["enabled"] = configured["enabled"]
+        if isinstance(configured.get("auto_send"), bool):
+            settings["auto_send"] = configured["auto_send"]
+    return settings
+
+
+def _write_voice_settings(settings: dict[str, bool]) -> bool:
+    try:
+        if paths.CONFIG.exists():
+            payload = json.loads(paths.CONFIG.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return False
+        else:
+            payload = {}
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    ai = payload.get("ai")
+    if not isinstance(ai, dict):
+        ai = {}
+        payload["ai"] = ai
+    ai["voice"] = {
+        "enabled": bool(settings.get("enabled", False)),
+        "auto_send": bool(settings.get("auto_send", True)),
+    }
+    temporary = paths.CONFIG.with_name(f"{paths.CONFIG.name}.{os.getpid()}.tmp")
+    try:
+        paths.CONFIG.parent.mkdir(parents=True, exist_ok=True)
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, paths.CONFIG)
+        return True
+    except OSError:
+        temporary.unlink(missing_ok=True)
+        return False
+
+
 class Api:
     """Fonctions accessibles depuis l'interface."""
 
@@ -57,6 +114,8 @@ class Api:
         history: ChatHistory | None = None,
         logger: logging.Logger | None = None,
         store: ChatStore | None = None,
+        listener: Any = None,
+        speaker: Any = None,
     ) -> None:
         if history is not None:
             self._store = history._store
@@ -74,10 +133,64 @@ class Api:
         self._tools = ToolRegistry(logger=self._logger)
         self._confirmations: dict[str, dict[str, Any]] = {}
         self._confirm_sequence = 0
+        self._voice_settings = _voice_settings()
+        self._listener = listener
+        self._speaker = speaker
+        self._listening = False
 
     def status(self) -> dict[str, Any]:
         ok, message = brain.is_ready()
         return {"ok": ok, "message": message}
+
+    def voice_status(self) -> dict[str, Any]:
+        return voice.status()
+
+    def voice_settings(self) -> dict[str, bool]:
+        return dict(self._voice_settings)
+
+    def set_voice(self, enabled: bool) -> dict[str, Any]:
+        wanted = bool(enabled)
+        if wanted:
+            available = voice.status()
+            if not available["tts"]:
+                return {"ok": False, "message": available["message"], **self.voice_settings()}
+        updated = {**self._voice_settings, "enabled": wanted}
+        if not _write_voice_settings(updated):
+            return {
+                "ok": False,
+                "message": "Le réglage de voix n'a pas pu être enregistré.",
+                **self.voice_settings(),
+            }
+        self._voice_settings = updated
+        if not wanted:
+            self._stop_speaker()
+        return {"ok": True, **self.voice_settings()}
+
+    def listen_start(self) -> dict[str, Any]:
+        available = voice.status()
+        if not available["stt"]:
+            return {"ok": False, "message": available["message"]}
+        with self._lock:
+            if self._listening:
+                return {"ok": False, "message": "Je t'écoute déjà."}
+            self._listening = True
+            if self._listener is None:
+                self._listener = voice.Listener()
+        self._js("onListen", {"state": "listening"})
+        self._logger.info("Début de l'écoute")
+        threading.Thread(
+            target=self._listen,
+            daemon=True,
+            name="sakura-ai-listener",
+        ).start()
+        return {"ok": True}
+
+    def listen_stop(self) -> dict[str, bool]:
+        with self._lock:
+            listener = self._listener if self._listening else None
+        if listener is not None:
+            listener.stop()
+        return {"ok": True}
 
     def history(self) -> list[dict[str, str]]:
         try:
@@ -92,6 +205,7 @@ class Api:
         return self._current_id
 
     def open_chat(self, chat_id: str) -> dict[str, Any]:
+        self._stop_speaker()
         with self._lock:
             if self._busy:
                 return {"ok": False, "message": "Arrête d'abord la réponse en cours."}
@@ -131,6 +245,7 @@ class Api:
 
     def stop(self) -> dict[str, bool]:
         self._stop.set()
+        self._stop_speaker()
         with self._lock:
             for pending in self._confirmations.values():
                 pending["event"].set()
@@ -148,6 +263,7 @@ class Api:
         return {"ok": True}
 
     def new_chat(self) -> dict[str, Any]:
+        self._stop_speaker()
         with self._lock:
             if self._busy:
                 return {"ok": False, "message": "Arrête d'abord la réponse en cours."}
@@ -258,11 +374,54 @@ class Api:
     def _on_action(self, text: str) -> None:
         self._js("onAction", text)
 
+    def _stop_speaker(self) -> None:
+        if self._speaker is not None:
+            self._speaker.stop()
+
+    def _speak(self, text: str) -> None:
+        spoken = voice.clean_for_speech(text)
+        if not spoken:
+            return
+        if self._speaker is None:
+            self._speaker = voice.Speaker(on_error=self._speaker_error)
+        self._speaker.speak(spoken)
+
+    def _speaker_error(self, error: Exception) -> None:
+        self._logger.error(
+            "Erreur pendant la synthèse vocale",
+            exc_info=(type(error), error, error.__traceback__),
+        )
+
+    def _listen(self) -> None:
+        transcription_started: float | None = None
+
+        def transcribing() -> None:
+            nonlocal transcription_started
+            transcription_started = time.monotonic()
+            self._js("onListen", {"state": "transcribing"})
+
+        try:
+            text = self._listener.listen(on_transcribing=transcribing)
+            duration = time.monotonic() - transcription_started if transcription_started is not None else 0.0
+            self._logger.info("Transcription terminée en %.2f s", duration)
+            self._js("onListen", {"state": "done", "text": text})
+        except Exception:
+            self._logger.exception("Erreur pendant l'écoute ou la transcription")
+            self._js("onListen", {
+                "state": "error",
+                "message": "Je n'ai pas réussi à écouter le micro. Réessaie.",
+            })
+        finally:
+            with self._lock:
+                self._listening = False
+            self._logger.info("Fin de l'écoute")
+
     def _answer(self, messages: list[dict[str, str]], chat_id: str, first_question: str | None) -> None:
         started = time.monotonic()
         pending: list[str] = []
         actions: list[str] = []
         last_flush = 0.0
+        splitter = voice.SentenceSplitter() if self._voice_settings["enabled"] else None
 
         def flush() -> None:
             nonlocal last_flush
@@ -273,6 +432,9 @@ class Api:
 
         def receive(chunk: str) -> None:
             pending.append(chunk)
+            if splitter is not None and self._voice_settings["enabled"] and not self._stop.is_set():
+                for sentence in splitter.feed(chunk):
+                    self._speak(sentence)
             if time.monotonic() - last_flush >= 0.05:
                 flush()
 
@@ -291,6 +453,9 @@ class Api:
                 on_action=action,
             )
             flush()
+            if splitter is not None and self._voice_settings["enabled"] and not self._stop.is_set():
+                for sentence in splitter.flush():
+                    self._speak(sentence)
             if answer or actions:
                 extra = {"actions": actions} if actions else {}
                 self._store.append(chat_id, "assistant", answer, **extra)

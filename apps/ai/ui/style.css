@@ -99,6 +99,20 @@ html, body { height: 100%; overflow: hidden; }
   font: inherit;
   line-height: 1.45;
 }
+.voice-microphone { border-radius: 50%; }
+.voice-microphone.is-listening {
+  border-color: var(--sk-accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--sk-accent) 45%, transparent);
+  animation: voice-pulse 1.25s ease-out infinite;
+}
+@keyframes voice-pulse {
+  70% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-microphone.is-listening { animation: none; }
+}
 
 @media (max-width: 620px) {
   .sk-titlebar-actions { display: flex; }
