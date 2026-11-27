@@ -20,8 +20,9 @@ sys.path.insert(0, str(ROOT))
 from core import paths  # noqa: E402
 from core import window as sk_window  # noqa: E402
 from sakura_musique import store  # noqa: E402
-from sakura_musique.api import get_me  # noqa: E402
+from sakura_musique.api import SpotifyAPI, SpotifyApiError, get_me  # noqa: E402
 from sakura_musique.auth import REDIRECT_URI, AuthError, SpotifyAuth  # noqa: E402
+from sakura_musique.spotify_app import ensure_device, show_spotify as reveal_spotify  # noqa: E402
 
 
 def _token(name: str, fallback: str) -> str:
@@ -56,6 +57,9 @@ class Api:
         self._cancel = threading.Event()
         self._lock = threading.Lock()
         self._profile: dict[str, Any] | None = None
+        self._spotify = SpotifyAPI(self._auth)
+        self._wake_active = False
+        self._wake_error: str | None = None
 
     def minimize(self) -> None:
         if self._window is not None:
@@ -175,6 +179,101 @@ class Api:
             return {"ok": True}
         except (OSError, subprocess.SubprocessError):
             return {"ok": False, "error": "Je n’ai pas pu copier l’adresse."}
+
+    @staticmethod
+    def _failure(error: Exception) -> dict[str, Any]:
+        _log(f"Lecteur Spotify : {type(error).__name__}: {error}")
+        return {"ok": False, "error": str(error) or "Spotify ne répond pas, je réessaie."}
+
+    def player(self) -> dict[str, Any]:
+        """État compact du lecteur ; pywebview exécute l'appel hors du fil JavaScript."""
+        try:
+            return {"ok": True, "player": self._spotify.player_state()}
+        except (AuthError, ValueError) as error:
+            return self._failure(error)
+
+    def toggle_play(self) -> dict[str, Any]:
+        try:
+            state = self._spotify.player_state()
+            if state and state["is_playing"]:
+                self._spotify.pause()
+            else:
+                device = ensure_device(self._spotify)
+                self._spotify.play(device.get("id"))
+            return {"ok": True, "player": self._spotify.player_state()}
+        except (AuthError, ValueError) as error:
+            return self._failure(error)
+
+    def next(self) -> dict[str, Any]:
+        return self._player_action(self._spotify.next)
+
+    def previous(self) -> dict[str, Any]:
+        return self._player_action(self._spotify.previous)
+
+    def seek(self, milliseconds: int) -> dict[str, Any]:
+        return self._player_action(lambda: self._spotify.seek(milliseconds))
+
+    def volume(self, percent: int) -> dict[str, Any]:
+        return self._player_action(lambda: self._spotify.set_volume(percent))
+
+    def shuffle(self, enabled: bool) -> dict[str, Any]:
+        return self._player_action(lambda: self._spotify.set_shuffle(enabled))
+
+    def repeat(self, mode: str) -> dict[str, Any]:
+        return self._player_action(lambda: self._spotify.set_repeat(mode))
+
+    def _player_action(self, action: Any) -> dict[str, Any]:
+        try:
+            action()
+            return {"ok": True, "player": self._spotify.player_state()}
+        except (AuthError, ValueError) as error:
+            return self._failure(error)
+
+    def devices(self) -> dict[str, Any]:
+        try:
+            return {"ok": True, "devices": self._spotify.devices()}
+        except AuthError as error:
+            return self._failure(error)
+
+    def choose_device(self, device_id: str) -> dict[str, Any]:
+        try:
+            current = self._spotify.player_state()
+            self._spotify.transfer(device_id, play=bool(current and current["is_playing"]))
+            return {"ok": True, "player": self._spotify.player_state()}
+        except AuthError as error:
+            return self._failure(error)
+
+    def wake_spotify(self) -> dict[str, Any]:
+        with self._lock:
+            if self._wake_active:
+                return {"ok": True, "started": False}
+            self._wake_active = True
+            self._wake_error = None
+
+        def worker() -> None:
+            try:
+                ensure_device(self._spotify)
+            except (SpotifyApiError, AuthError) as error:
+                with self._lock:
+                    self._wake_error = str(error)
+                _log(f"Réveil Spotify : {error}")
+            finally:
+                with self._lock:
+                    self._wake_active = False
+
+        threading.Thread(target=worker, daemon=True, name="musique-wake").start()
+        return {"ok": True, "started": True}
+
+    def wake_state(self) -> dict[str, Any]:
+        with self._lock:
+            return {"active": self._wake_active, "error": self._wake_error}
+
+    def show_spotify(self) -> dict[str, Any]:
+        try:
+            shown = reveal_spotify()
+            return {"ok": shown, "error": None if shown else "Spotify n’a pas encore de fenêtre à montrer."}
+        except OSError as error:
+            return self._failure(error)
 
 
 def _serve() -> tuple[http.server.ThreadingHTTPServer, int]:

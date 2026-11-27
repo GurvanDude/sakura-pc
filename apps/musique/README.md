@@ -1,6 +1,7 @@
 # Sakura Musique
 
-Première étape de l’application : connecter le compte Spotify de Gurvan avec OAuth PKCE, sans secret client.
+Façade Sakura du lecteur Spotify : connexion OAuth PKCE, lecture en cours et télécommande Spotify Connect.
+Spotify Premium est nécessaire pour piloter la lecture.
 
 ## Lancer
 
@@ -8,13 +9,34 @@ Première étape de l’application : connecter le compte Spotify de Gurvan avec
 python apps/musique/app.py
 ```
 
-La commande inter-applications est :
+## Contrat entre applications
+
+Les commandes JSON disponibles sont :
 
 ```powershell
 python apps/musique/musique.py status --json
+python apps/musique/musique.py now --json
+python apps/musique/musique.py play --json
+python apps/musique/musique.py pause --json
+python apps/musique/musique.py next --json
 ```
 
-Elle renvoie toujours `connected` (booléen) et `user` (nom affiché Spotify ou `null`).
+`status` renvoie toujours :
+
+- `connected` : booléen ;
+- `user` : nom affiché Spotify ou `null`.
+
+`now`, `play`, `pause` et `next` renvoient toujours `ok` (booléen) et `error` (texte ou `null`).
+En cas de morceau disponible, les champs stables ajoutés sont :
+
+- `is_playing`, `progress_ms`, `duration_ms` ;
+- `title`, `artists` (tous les artistes dans un texte), `album`, `cover_url` ;
+- `shuffle`, `repeat` (`off`, `context` ou `track`), `volume` ;
+- `device`, avec `id`, `name` et `type`.
+
+Quand rien ne joue, `now` renvoie aussi `playing: false`. Une commande de lecture réveille Spotify sur ce PC
+si aucun appareil n’est actif. Les commandes en erreur terminent avec un code non nul et gardent un objet JSON
+lisible sur la sortie standard.
 
 ## Préparer Spotify
 

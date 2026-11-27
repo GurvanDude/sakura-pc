@@ -10,7 +10,7 @@ reste invisible.
 - [x] 1. **Connexion Spotify** : Gurvan crée une appli gratuite sur developer.spotify.com (adresse de retour
       `http://127.0.0.1:<port>/callback`), on se connecte depuis la fenêtre (OAuth PKCE, sans mot de passe dans
       l'appli). Jeton dans `%APPDATA%\SakuraPC` via `core.paths`, jamais dans le dépôt ; « Se déconnecter » efface tout.
-- [ ] 2. **Lecteur** : morceau en cours (pochette, titre, artiste, progression), lecture/pause, suivant/précédent,
+- [x] 2. **Lecteur** : morceau en cours (pochette, titre, artiste, progression), lecture/pause, suivant/précédent,
       volume, aléatoire/répétition, choix de l'appareil. Si aucun appareil n'est actif, Spotify est lancé caché.
 - [ ] 3. **Bibliothèque** : playlists, titres likés, albums, recherche, file d'attente, ajouter aux favoris.
 - [ ] 4. **Look Sakura** : charte jour/nuit, couleur d'accent prise sur la pochette (comme les jaquettes du
