@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr" data-theme="day">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sakura Musique</title>
+  <link rel="stylesheet" href="/design/tokens.css">
+  <link rel="stylesheet" href="/design/ui/sakura.css">
+  <script src="/design/ui/sakura.js"></script>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="sk-window" id="musique-window" data-torii="faint">
+    <main class="sk-main musique-main">
+      <section class="sk-section musique-page" id="setup-screen" hidden>
+        <div class="sk-verdict">
+          <div class="sk-mood" aria-hidden="true">🌸</div>
+          <div>
+            <div class="sk-tag">つなごう · ON SE BRANCHE</div>
+            <h1 class="sk-title">Branchons ton Spotify</h1>
+            <p class="sk-sub">Une petite clé publique suffit. Ton mot de passe reste chez Spotify.</p>
+          </div>
+        </div>
+        <article class="sk-card setup-card">
+          <h2 class="sk-section-title">Ton Client ID Spotify</h2>
+          <div class="setup-steps">
+            <p>1. Crée une appli sur developer.spotify.com.</p>
+            <p>2. Ajoute cette adresse dans ses « Redirect URIs ».</p>
+            <p>3. Colle ici le Client ID de l’appli.</p>
+          </div>
+          <div class="redirect-box">
+            <code id="redirect-uri">http://127.0.0.1:47823/callback</code>
+            <button class="sk-btn sk-btn--secondary sk-btn--small" id="copy-redirect" type="button">Copier</button>
+          </div>
+          <label class="field-label" for="client-id">Client ID</label>
+          <input class="sk-input" id="client-id" type="text" maxlength="32" autocomplete="off" spellcheck="false" placeholder="32 caractères hexadécimaux">
+          <p class="field-help" id="client-id-help">Tu le trouveras dans le tableau de bord de ton appli Spotify.</p>
+        </article>
+        <div class="sk-actions page-actions">
+          <button class="sk-btn sk-btn--primary" id="save-client-id" type="button">Enregistrer</button>
+        </div>
+      </section>
+
+      <section class="sk-section musique-page" id="login-screen" hidden>
+        <div class="sk-verdict">
+          <div class="sk-mood" aria-hidden="true">🎧</div>
+          <div>
+            <div class="sk-tag">もうすぐ · PRESQUE PRÊTE</div>
+            <h1 class="sk-title">Prête à se connecter</h1>
+            <p class="sk-sub" id="login-subtitle">Spotify va s’ouvrir dans ton navigateur.</p>
+          </div>
+        </div>
+        <article class="sk-card login-card">
+          <p id="login-explanation">Accepte la connexion dans Spotify, puis reviens ici. Sakura ne voit jamais ton mot de passe.</p>
+          <div class="waiting" id="waiting" hidden>
+            <span class="sk-led" aria-hidden="true"></span>
+            <strong>J’attends que tu acceptes dans ton navigateur…</strong>
+          </div>
+        </article>
+        <div class="sk-actions page-actions">
+          <button class="sk-btn sk-btn--primary" id="login" type="button">Se connecter à Spotify</button>
+          <button class="sk-btn sk-btn--secondary" id="cancel-login" type="button" hidden>Annuler</button>
+          <button class="change-client" id="change-client" type="button">Changer de Client ID</button>
+        </div>
+      </section>
+
+      <section class="sk-section musique-page" id="connected-screen" hidden>
+        <div class="sk-verdict player-verdict">
+          <div class="sk-mood" aria-hidden="true">♫</div>
+          <div>
+            <div class="sk-tag">音楽 · SAKURA MUSIQUE</div>
+            <h1 class="sk-title" id="player-verdict">Rien ne joue pour l’instant</h1>
+            <p class="sk-sub" id="player-subtitle">Ton Spotify est prêt.</p>
+          </div>
+        </div>
+
+        <article class="sk-card player-card" id="player-card">
+          <div class="player-empty" id="player-empty">
+            <strong id="empty-title">Rien ne joue pour l’instant</strong>
+            <p id="empty-text">Lance Spotify discrètement, puis choisis ta musique.</p>
+            <button class="sk-btn sk-btn--primary" id="wake-spotify" type="button">Lancer Spotify en arrière-plan</button>
+          </div>
+          <div class="player-content" id="player-content" hidden>
+            <img class="cover" id="cover" alt="Pochette du morceau">
+            <div class="track-panel">
+              <div class="track-copy">
+                <h2 id="track-title">—</h2>
+                <p class="track-artists" id="track-artists"></p>
+                <p class="track-album" id="track-album"></p>
+              </div>
+              <div class="progress-wrap">
+                <input class="sk-range" id="progress" type="range" min="0" max="1" value="0" aria-label="Progression du morceau">
+                <div class="time-row"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
+              </div>
+              <div class="transport" aria-label="Commandes de lecture">
+                <button class="sk-btn sk-btn--secondary sk-btn--icon" id="shuffle" type="button" aria-label="Activer la lecture aléatoire" title="Lecture aléatoire">⇄</button>
+                <button class="sk-btn sk-btn--secondary sk-btn--icon" id="previous" type="button" aria-label="Morceau précédent" title="Morceau précédent">◀</button>
+                <button class="sk-btn sk-btn--primary play-button" id="toggle-play" type="button" aria-label="Lire" title="Lire">▶</button>
+                <button class="sk-btn sk-btn--secondary sk-btn--icon" id="next" type="button" aria-label="Morceau suivant" title="Morceau suivant">▶</button>
+                <button class="sk-btn sk-btn--secondary sk-btn--icon repeat-button" id="repeat" type="button" aria-label="Changer la répétition" title="Répétition">↻<span id="repeat-mark"></span></button>
+              </div>
+              <div class="player-settings">
+                <label class="setting volume-setting" for="volume"><span>Volume</span><input class="sk-range" id="volume" type="range" min="0" max="100" value="50"></label>
+                <label class="setting device-setting" for="device"><span>Appareil</span><select class="sk-select" id="device"><option value="">Aucun appareil</option></select></label>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <button class="sk-details-toggle" id="details-toggle" data-label="Détails" type="button">Détails ▾</button>
+        <div class="sk-details" id="account-details" hidden>
+          <article class="sk-card profile-card">
+            <div class="profile-avatar" id="avatar-fallback" aria-hidden="true">♫</div>
+            <img class="profile-avatar" id="avatar" alt="" hidden>
+            <div class="profile-main">
+              <strong class="profile-name" id="profile-name"></strong>
+              <span class="sk-stat-state is-ok" id="premium-badge">Premium</span>
+            </div>
+            <div class="detail-actions">
+              <button class="sk-btn sk-btn--secondary sk-btn--small" id="show-spotify" type="button">Montrer Spotify</button>
+              <button class="sk-btn sk-btn--danger sk-btn--small" id="logout" type="button">Se déconnecter</button>
+            </div>
+          </article>
+          <aside class="sk-tip" id="premium-tip" hidden>
+            <div class="sk-tip-body"><div class="sk-tip-title">Spotify Premium est nécessaire</div><p>Il faut Spotify Premium pour piloter la lecture depuis Sakura Musique.</p></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
